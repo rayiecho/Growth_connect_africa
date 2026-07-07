@@ -16,10 +16,12 @@ export function DashboardTabs({
   applicants,
   videoSubmissions,
   verifications,
+  cronSecret,
 }: {
   applicants: Applicant[];
   videoSubmissions: VideoSubmission[];
   verifications: Verification[];
+  cronSecret: string;
 }) {
   const [tab, setTab] = useState(0);
 
@@ -31,7 +33,7 @@ export function DashboardTabs({
     <div>
       <Tabs steps={STEPS} activeIndex={tab} onStepClick={setTab} />
       {tab === 0 && <ApplicantTable initialData={applicants} />}
-      {tab === 1 && <VideoSubmissionsTable initialData={videoSubmissions} />}
+      {tab === 1 && <VideoSubmissionsTable initialData={videoSubmissions} cronSecret={cronSecret} />}
       {tab === 2 && <VerificationsTable initialData={verifications} />}
       {tab === 3 && <ApplicantTable initialData={programParticipants} />}
     </div>
