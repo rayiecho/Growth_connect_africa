@@ -40,16 +40,17 @@ export type Applicant = {
   assigned_reviewer: string | null;
   notes: string | null;
   next_action_required: string | null;
-  // New response scheduling fields
+  // Response scheduling fields
   admin_response: string | null;
   email_response_status: string | null;
   scheduled_send_date: string | null;
+  // Video invite tracking
+  video_invite_window: string | null;
 };
 
 export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
   const [applicants, setApplicants] = useState(initialData);
   const [search, setSearch] = useState("");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingNotesId, setSavingNotesId] = useState<string | null>(null);
 
@@ -58,22 +59,6 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
       .toLowerCase()
       .includes(search.toLowerCase())
   );
-
-  async function updateStage(id: string, stage: string, status: string) {
-    setUpdatingId(id);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("applicants")
-      .update({ current_stage: stage, current_status: status, last_updated: new Date().toISOString() })
-      .eq("id", id);
-
-    setUpdatingId(null);
-    if (!error) {
-      setApplicants((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, current_stage: stage, current_status: status } : a))
-      );
-    }
-  }
 
   async function updateAdminFields(
     id: string,
@@ -112,9 +97,9 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
               <th className="px-4 py-3 font-semibold">Email</th>
               <th className="px-4 py-3 font-semibold">Stage</th>
               <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Video Invite</th>
               <th className="px-4 py-3 font-semibold">Response</th>
               <th className="px-4 py-3 font-semibold">Applied</th>
-              <th className="px-4 py-3 font-semibold">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -149,40 +134,21 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                       </span>
                     </td>
                     <td className="px-4 py-3">
+                      <VideoInviteStatus window={a.video_invite_window} />
+                    </td>
+                    <td className="px-4 py-3">
                       <ResponseStatusBadge status={a.email_response_status} />
                     </td>
                     <td className="px-4 py-3 text-brand-slate">
                       {new Date(a.date_applied).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="primary"
-                          className="!px-4 !py-2 text-xs"
-                          disabled={updatingId === a.id}
-                          onClick={() => updateStage(a.id, "Applications Approved", "Active")}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          className="!px-4 !py-2 text-xs"
-                          disabled={updatingId === a.id}
-                          onClick={() => updateStage(a.id, "Rejected Application", "Rejected")}
-                        >
-                          Reject
-                        </Button>
-                      </div>
                     </td>
                   </tr>
 
                   {isExpanded && (
                     <tr key={`${a.id}-details`} className="border-t border-brand-line">
                       <td colSpan={7} className="px-6 py-5">
-                        {/* Two-column layout: details left, response panel right */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-                          {/* ── LEFT: Application Details ── */}
+                          {/* LEFT: Application Details */}
                           <div>
                             <h3 className="text-sm font-bold text-brand-charcoal uppercase tracking-wide mb-4">
                               Application Details
@@ -227,14 +193,13 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                             />
                           </div>
 
-                          {/* ── RIGHT: Response Panel ── */}
+                          {/* RIGHT: Response Panel */}
                           <div className="border-l border-brand-line pl-8">
                             <h3 className="text-sm font-bold text-brand-charcoal uppercase tracking-wide mb-4">
                               Applicant Response
                             </h3>
                             <ResponsePanel applicant={a} />
                           </div>
-
                         </div>
                       </td>
                     </tr>
@@ -256,7 +221,18 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
   );
 }
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
+// ── Status badges ─────────────────────────────────────────────────────────────
+
+function VideoInviteStatus({ window }: { window: string | null }) {
+  if (!window) {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
+  return (
+    <span className="inline-block rounded-pill bg-blue-50 text-blue-600 px-2 py-0.5 text-xs font-medium">
+      {window === "tue" ? "Tue invite" : "Fri invite"}
+    </span>
+  );
+}
 
 function ResponseStatusBadge({ status }: { status: string | null }) {
   if (!status || status === "pending") {
@@ -279,7 +255,7 @@ function ResponseStatusBadge({ status }: { status: string | null }) {
   return null;
 }
 
-// ── Detail Short Field ────────────────────────────────────────────────────────
+// ── Detail helpers ───────────────────────────────────────────────────────────
 
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
@@ -289,8 +265,6 @@ function Detail({ label, value }: { label: string; value: string | null }) {
     </div>
   );
 }
-
-// ── Detail Long Field ─────────────────────────────────────────────────────────
 
 function LongField({ label, value }: { label: string; value: string | null }) {
   return (
@@ -347,11 +321,7 @@ function AdminFieldsEditor({
           className="!px-4 !py-2 text-xs"
           disabled={saving}
           onClick={() =>
-            onSave({
-              assigned_reviewer: reviewer,
-              notes,
-              next_action_required: nextAction,
-            })
+            onSave({ assigned_reviewer: reviewer, notes, next_action_required: nextAction })
           }
         >
           {saving ? "Saving..." : "Save"}
@@ -369,20 +339,18 @@ function ResponsePanel({ applicant }: { applicant: Applicant }) {
   const [response, setResponse] = useState(applicant.admin_response ?? "");
   const [scheduleDay, setScheduleDay] = useState<ScheduleDay>("tuesday");
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success"; msg: string } | { type: "error"; msg: string } | null>(null);
 
   async function saveAndQueue() {
     if (!response.trim()) {
       setFeedback({ type: "error", msg: "Write a response before queuing." });
       return;
     }
-    if (!window.confirm(`Queue this response to send on ${scheduleDay === "tuesday" ? "Tuesday" : "Friday"}? It will be sent automatically on that day.`)) return;
+    if (!window.confirm(`Queue this response to send on ${scheduleDay === "tuesday" ? "Tuesday" : "Friday"}?`)) return;
 
     setSavingId(applicant.id);
     setFeedback(null);
     const supabase = createClient();
-
-    // Compute the next target day
     const scheduledDate = getNextDateForDay(scheduleDay);
 
     const { error } = await supabase
@@ -408,16 +376,12 @@ function ResponsePanel({ applicant }: { applicant: Applicant }) {
   }
 
   async function clearQueue() {
-    if (!window.confirm("Remove this response from the queue? It will stay saved but won't be sent until you re-queue it.")) return;
+    if (!window.confirm("Remove this response from the queue?")) return;
     setSavingId(applicant.id);
     const supabase = createClient();
     await supabase
       .from("applicants")
-      .update({
-        email_response_status: "pending",
-        scheduled_send_date: null,
-        last_updated: new Date().toISOString(),
-      })
+      .update({ email_response_status: "pending", scheduled_send_date: null, last_updated: new Date().toISOString() })
       .eq("id", applicant.id);
     setSavingId(null);
     setFeedback({ type: "success", msg: "Removed from queue." });
@@ -425,11 +389,9 @@ function ResponsePanel({ applicant }: { applicant: Applicant }) {
 
   const isSent = applicant.email_response_status === "sent";
   const isQueued = applicant.email_response_status === "queued";
-  const alreadySaved = !!applicant.admin_response;
 
   return (
     <div className="space-y-4">
-      {/* Current status banner */}
       {isSent && (
         <div className="bg-brand-green/10 border border-brand-green/20 rounded-lg px-4 py-2 text-sm text-brand-green-dark">
           ✅ Response sent on {applicant.scheduled_send_date ? new Date(applicant.scheduled_send_date).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"}
@@ -441,11 +403,9 @@ function ResponsePanel({ applicant }: { applicant: Applicant }) {
         </div>
       )}
 
-      {/* Textarea — always editable */}
       <div>
         <label className="block text-xs font-semibold text-brand-charcoal uppercase tracking-wide mb-1">
           Your Response
-          {alreadySaved && !isSent && <span className="font-normal text-brand-slate ml-1">(saved)</span>}
         </label>
         <textarea
           rows={8}
@@ -459,72 +419,41 @@ function ResponsePanel({ applicant }: { applicant: Applicant }) {
         </p>
       </div>
 
-      {/* Schedule selector — hidden if already sent */}
       {!isSent && (
         <div>
-          <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide mb-2">
-            Send On
-          </p>
+          <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide mb-2">Send On</p>
           <div className="flex gap-3">
-            <label className={`flex-1 cursor-pointer`}>
-              <input
-                type="radio"
-                name={`schedule-${applicant.id}`}
-                value="tuesday"
-                checked={scheduleDay === "tuesday"}
-                onChange={() => setScheduleDay("tuesday")}
-                className="peer sr-only"
-              />
+            <label className="flex-1 cursor-pointer">
+              <input type="radio" name={`schedule-${applicant.id}`} value="tuesday" checked={scheduleDay === "tuesday"} onChange={() => setScheduleDay("tuesday")} className="peer sr-only" />
               <div className={`border rounded-lg px-4 py-2 text-center text-sm font-medium transition-all peer-checked:border-brand-green peer-checked:bg-brand-green/5 peer-checked:text-brand-green-dark ${scheduleDay === "tuesday" ? "border-brand-green bg-brand-green/5 text-brand-green-dark" : "border-brand-line text-brand-slate"}`}>
                 Tuesday
-                <span className="block text-xs font-normal mt-0.5">
-                  {getNextDateForDayLabel("tuesday")}
-                </span>
+                <span className="block text-xs font-normal mt-0.5">{getNextDateForDayLabel("tuesday")}</span>
               </div>
             </label>
             <label className="flex-1 cursor-pointer">
-              <input
-                type="radio"
-                name={`schedule-${applicant.id}`}
-                value="friday"
-                checked={scheduleDay === "friday"}
-                onChange={() => setScheduleDay("friday")}
-                className="peer sr-only"
-              />
+              <input type="radio" name={`schedule-${applicant.id}`} value="friday" checked={scheduleDay === "friday"} onChange={() => setScheduleDay("friday")} className="peer sr-only" />
               <div className={`border rounded-lg px-4 py-2 text-center text-sm font-medium transition-all peer-checked:border-brand-green peer-checked:bg-brand-green/5 peer-checked:text-brand-green-dark ${scheduleDay === "friday" ? "border-brand-green bg-brand-green/5 text-brand-green-dark" : "border-brand-line text-brand-slate"}`}>
                 Friday
-                <span className="block text-xs font-normal mt-0.5">
-                  {getNextDateForDayLabel("friday")}
-                </span>
+                <span className="block text-xs font-normal mt-0.5">{getNextDateForDayLabel("friday")}</span>
               </div>
             </label>
           </div>
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-3">
         {!isSent && (
-          <Button
-            variant="primary"
-            disabled={savingId === applicant.id}
-            onClick={saveAndQueue}
-          >
+          <Button variant="primary" disabled={savingId === applicant.id} onClick={saveAndQueue}>
             {savingId === applicant.id ? "Saving…" : isQueued ? "Update Queue" : "Save & Queue"}
           </Button>
         )}
         {isQueued && !isSent && (
-          <Button
-            variant="secondary"
-            disabled={savingId === applicant.id}
-            onClick={clearQueue}
-          >
+          <Button variant="secondary" disabled={savingId === applicant.id} onClick={clearQueue}>
             Remove from Queue
           </Button>
         )}
       </div>
 
-      {/* Feedback message */}
       {feedback && (
         <p className={`text-sm ${feedback.type === "error" ? "text-red-600" : "text-brand-green-dark"}`}>
           {feedback.msg}
@@ -536,37 +465,28 @@ function ResponsePanel({ applicant }: { applicant: Applicant }) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Returns the next upcoming Tuesday or Friday date string (YYYY-MM-DD). */
 function getNextDateForDay(day: ScheduleDay): string {
-  const targetDay = day === "tuesday" ? 2 : 5; // getDay(): Tue=2, Fri=5
+  const targetDay = day === "tuesday" ? 2 : 5;
   const today = new Date();
   const todayDay = today.getDay();
   let daysToAdd: number;
 
   if (todayDay === targetDay) {
-    // Today is the target — return today (they want midnight tonight)
     const d = new Date(today);
     d.setHours(0, 0, 0, 0);
     return d.toISOString().slice(0, 10);
   }
-
   if (todayDay < targetDay) {
     daysToAdd = targetDay - todayDay;
   } else {
-    // Past today this week, add difference to next week's target
     daysToAdd = 7 - todayDay + targetDay;
   }
-
   const result = new Date(today);
   result.setDate(result.getDate() + daysToAdd);
   return result.toISOString().slice(0, 10);
 }
 
-/** Human-readable label like "8 Jul" for the next upcoming day. */
 function getNextDateForDayLabel(day: ScheduleDay): string {
   const dateStr = getNextDateForDay(day);
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-  });
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }

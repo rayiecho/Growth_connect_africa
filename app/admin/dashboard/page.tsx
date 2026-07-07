@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
+import { VideoSubmission } from "@/components/admin/VideoSubmissionsTable";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -11,17 +12,16 @@ export default async function DashboardPage() {
   const { data: applicants } = await supabase
     .from("applicants")
     .select(
-      "id, first_name, last_name, email, phone, current_stage, current_status, date_applied, industry, other_industry, business_name, business_stage, business_description, problem_solved, target_customers, business_registered, generates_revenue, revenue_progress, growth_potential, long_term_vision, use_of_funds, biggest_challenges, attend_lagos_event, why_considered, commitment_confirmed, disclaimers_accepted, state_country, age_range, gender, linkedin, business_social, assigned_reviewer, notes, next_action_required, admin_response, email_response_status, scheduled_send_date"
+      "id, first_name, last_name, email, phone, current_stage, current_status, date_applied, industry, other_industry, business_name, business_stage, business_description, problem_solved, target_customers, business_registered, generates_revenue, revenue_progress, growth_potential, long_term_vision, use_of_funds, biggest_challenges, attend_lagos_event, why_considered, commitment_confirmed, disclaimers_accepted, state_country, age_range, gender, linkedin, business_social, assigned_reviewer, notes, next_action_required, admin_response, email_response_status, scheduled_send_date, video_invite_window"
     )
     .order("date_applied", { ascending: false });
 
   // Joined against applicants so the video table can show the person's
-  // name/email without a second round trip — this is the Postgres
-  // relational join the whole schema was designed around.
+  // name/email without a second round trip.
   const { data: videoSubmissions } = await supabase
     .from("video_submissions")
     .select(
-      "id, applicant_id, video_link, submitted_at, review_status, applicants(first_name, last_name, email)"
+      "id, applicant_id, video_link, submitted_at, review_status, feedback, approved_at, rejected_at, invite_email_sent_at, applicants(first_name, last_name, email)"
     )
     .order("submitted_at", { ascending: false });
     const { data: verifications } = await supabase
@@ -59,8 +59,9 @@ export default async function DashboardPage() {
         </h2>
         <DashboardTabs
           applicants={applicants ?? []}
-          videoSubmissions={(videoSubmissions ?? []) as any}
+          videoSubmissions={(videoSubmissions ?? []) as VideoSubmission[]}
           verifications={(verifications ?? []) as any}
+          cronSecret={process.env.CRON_SECRET ?? ""}
         />
       </div>
     </main>
