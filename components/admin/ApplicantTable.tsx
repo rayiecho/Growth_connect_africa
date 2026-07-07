@@ -40,6 +40,10 @@ export type Applicant = {
   assigned_reviewer: string | null;
   notes: string | null;
   next_action_required: string | null;
+  // New response scheduling fields
+  admin_response: string | null;
+  email_response_status: string | null;
+  scheduled_send_date: string | null;
 };
 
 export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
@@ -108,6 +112,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
               <th className="px-4 py-3 font-semibold">Email</th>
               <th className="px-4 py-3 font-semibold">Stage</th>
               <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Response</th>
               <th className="px-4 py-3 font-semibold">Applied</th>
               <th className="px-4 py-3 font-semibold">Action</th>
             </tr>
@@ -143,6 +148,9 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                         {a.current_status}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <ResponseStatusBadge status={a.email_response_status} />
+                    </td>
                     <td className="px-4 py-3 text-brand-slate">
                       {new Date(a.date_applied).toLocaleDateString()}
                     </td>
@@ -169,47 +177,65 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                   </tr>
 
                   {isExpanded && (
-                    <tr key={`${a.id}-details`} className="border-t border-brand-line bg-gray-50">
-                      <td colSpan={6} className="px-6 py-5">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 mb-5 text-sm">
-                          <Detail label="Phone" value={a.phone} />
-                          <Detail label="State/Country" value={a.state_country} />
-                          <Detail label="Age Range" value={a.age_range} />
-                          <Detail label="Gender" value={a.gender} />
-                          <Detail label="LinkedIn" value={a.linkedin} />
-                          <Detail label="Business Social" value={a.business_social} />
-                          <Detail label="Business Name" value={a.business_name} />
-                          <Detail label="Business Stage" value={a.business_stage} />
-                          <Detail label="Industry" value={a.industry} />
-                          <Detail label="Other Industry" value={a.other_industry} />
-                          <Detail label="Target Customers" value={a.target_customers} />
-                          <Detail label="Business Registered" value={a.business_registered} />
-                          <Detail label="Generates Revenue" value={a.generates_revenue} />
-                          <Detail label="Attend Lagos Event" value={a.attend_lagos_event} />
-                          <Detail
-                            label="Commitment Confirmed"
-                            value={a.commitment_confirmed ? "Yes" : "No"}
-                          />
-                          <Detail
-                            label="Disclaimers Accepted"
-                            value={a.disclaimers_accepted ? "Yes" : "No"}
-                          />
+                    <tr key={`${a.id}-details`} className="border-t border-brand-line">
+                      <td colSpan={7} className="px-6 py-5">
+                        {/* Two-column layout: details left, response panel right */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                          {/* ── LEFT: Application Details ── */}
+                          <div>
+                            <h3 className="text-sm font-bold text-brand-charcoal uppercase tracking-wide mb-4">
+                              Application Details
+                            </h3>
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-5 text-sm">
+                              <Detail label="Phone" value={a.phone} />
+                              <Detail label="State/Country" value={a.state_country} />
+                              <Detail label="Age Range" value={a.age_range} />
+                              <Detail label="Gender" value={a.gender} />
+                              <Detail label="LinkedIn" value={a.linkedin} />
+                              <Detail label="Business Social" value={a.business_social} />
+                              <Detail label="Business Name" value={a.business_name} />
+                              <Detail label="Business Stage" value={a.business_stage} />
+                              <Detail label="Industry" value={a.industry} />
+                              <Detail label="Target Customers" value={a.target_customers} />
+                              <Detail label="Business Registered" value={a.business_registered} />
+                              <Detail label="Generates Revenue" value={a.generates_revenue} />
+                              <Detail label="Attend Lagos Event" value={a.attend_lagos_event} />
+                              <Detail
+                                label="Commitment Confirmed"
+                                value={a.commitment_confirmed ? "Yes" : "No"}
+                              />
+                              <Detail
+                                label="Disclaimers Accepted"
+                                value={a.disclaimers_accepted ? "Yes" : "No"}
+                              />
+                            </div>
+
+                            <LongField label="Business Description" value={a.business_description} />
+                            <LongField label="Problem Solved" value={a.problem_solved} />
+                            <LongField label="Revenue Progress" value={a.revenue_progress} />
+                            <LongField label="Growth Potential" value={a.growth_potential} />
+                            <LongField label="Long-Term Vision" value={a.long_term_vision} />
+                            <LongField label="Use of Funds" value={a.use_of_funds} />
+                            <LongField label="Biggest Challenges" value={a.biggest_challenges} />
+                            <LongField label="Why Considered" value={a.why_considered} />
+
+                            <AdminFieldsEditor
+                              applicant={a}
+                              saving={savingNotesId === a.id}
+                              onSave={(fields) => updateAdminFields(a.id, fields)}
+                            />
+                          </div>
+
+                          {/* ── RIGHT: Response Panel ── */}
+                          <div className="border-l border-brand-line pl-8">
+                            <h3 className="text-sm font-bold text-brand-charcoal uppercase tracking-wide mb-4">
+                              Applicant Response
+                            </h3>
+                            <ResponsePanel applicant={a} />
+                          </div>
+
                         </div>
-
-                        <LongField label="Business Description" value={a.business_description} />
-                        <LongField label="Problem Solved" value={a.problem_solved} />
-                        <LongField label="Revenue Progress" value={a.revenue_progress} />
-                        <LongField label="Growth Potential" value={a.growth_potential} />
-                        <LongField label="Long-Term Vision" value={a.long_term_vision} />
-                        <LongField label="Use of Funds" value={a.use_of_funds} />
-                        <LongField label="Biggest Challenges" value={a.biggest_challenges} />
-                        <LongField label="Why Considered" value={a.why_considered} />
-
-                        <AdminFieldsEditor
-                          applicant={a}
-                          saving={savingNotesId === a.id}
-                          onSave={(fields) => updateAdminFields(a.id, fields)}
-                        />
                       </td>
                     </tr>
                   )}
@@ -218,7 +244,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-brand-slate">
+                <td colSpan={7} className="px-4 py-8 text-center text-brand-slate">
                   No applicants match your search.
                 </td>
               </tr>
@@ -230,6 +256,31 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
   );
 }
 
+// ── Status Badge ──────────────────────────────────────────────────────────────
+
+function ResponseStatusBadge({ status }: { status: string | null }) {
+  if (!status || status === "pending") {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
+  if (status === "queued") {
+    return (
+      <span className="inline-block rounded-pill bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">
+        Queued
+      </span>
+    );
+  }
+  if (status === "sent") {
+    return (
+      <span className="inline-block rounded-pill bg-brand-green/10 text-brand-green-dark px-2 py-0.5 text-xs font-medium">
+        Sent
+      </span>
+    );
+  }
+  return null;
+}
+
+// ── Detail Short Field ────────────────────────────────────────────────────────
+
 function Detail({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
@@ -239,6 +290,8 @@ function Detail({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+// ── Detail Long Field ─────────────────────────────────────────────────────────
+
 function LongField({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="space-y-1 mb-5">
@@ -247,6 +300,8 @@ function LongField({ label, value }: { label: string; value: string | null }) {
     </div>
   );
 }
+
+// ── Admin Notes Editor ────────────────────────────────────────────────────────
 
 function AdminFieldsEditor({
   applicant,
@@ -304,4 +359,214 @@ function AdminFieldsEditor({
       </div>
     </div>
   );
+}
+
+// ── Response Panel ─────────────────────────────────────────────────────────────
+
+type ScheduleDay = "tuesday" | "friday";
+
+function ResponsePanel({ applicant }: { applicant: Applicant }) {
+  const [response, setResponse] = useState(applicant.admin_response ?? "");
+  const [scheduleDay, setScheduleDay] = useState<ScheduleDay>("tuesday");
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  async function saveAndQueue() {
+    if (!response.trim()) {
+      setFeedback({ type: "error", msg: "Write a response before queuing." });
+      return;
+    }
+    if (!window.confirm(`Queue this response to send on ${scheduleDay === "tuesday" ? "Tuesday" : "Friday"}? It will be sent automatically on that day.`)) return;
+
+    setSavingId(applicant.id);
+    setFeedback(null);
+    const supabase = createClient();
+
+    // Compute the next target day
+    const scheduledDate = getNextDateForDay(scheduleDay);
+
+    const { error } = await supabase
+      .from("applicants")
+      .update({
+        admin_response: response.trim(),
+        email_response_status: "queued",
+        scheduled_send_date: scheduledDate,
+        last_updated: new Date().toISOString(),
+      })
+      .eq("id", applicant.id);
+
+    setSavingId(null);
+
+    if (error) {
+      setFeedback({ type: "error", msg: "Failed to save. Try again." });
+    } else {
+      setFeedback({
+        type: "success",
+        msg: `Queued — will send on ${scheduleDay === "tuesday" ? "Tuesday" : "Friday"} (${new Date(scheduledDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}).`,
+      });
+    }
+  }
+
+  async function clearQueue() {
+    if (!window.confirm("Remove this response from the queue? It will stay saved but won't be sent until you re-queue it.")) return;
+    setSavingId(applicant.id);
+    const supabase = createClient();
+    await supabase
+      .from("applicants")
+      .update({
+        email_response_status: "pending",
+        scheduled_send_date: null,
+        last_updated: new Date().toISOString(),
+      })
+      .eq("id", applicant.id);
+    setSavingId(null);
+    setFeedback({ type: "success", msg: "Removed from queue." });
+  }
+
+  const isSent = applicant.email_response_status === "sent";
+  const isQueued = applicant.email_response_status === "queued";
+  const alreadySaved = !!applicant.admin_response;
+
+  return (
+    <div className="space-y-4">
+      {/* Current status banner */}
+      {isSent && (
+        <div className="bg-brand-green/10 border border-brand-green/20 rounded-lg px-4 py-2 text-sm text-brand-green-dark">
+          ✅ Response sent on {applicant.scheduled_send_date ? new Date(applicant.scheduled_send_date).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"}
+        </div>
+      )}
+      {isQueued && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-700">
+          🕐 Queued for {applicant.scheduled_send_date ? new Date(applicant.scheduled_send_date).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—"}
+        </div>
+      )}
+
+      {/* Textarea — always editable */}
+      <div>
+        <label className="block text-xs font-semibold text-brand-charcoal uppercase tracking-wide mb-1">
+          Your Response
+          {alreadySaved && !isSent && <span className="font-normal text-brand-slate ml-1">(saved)</span>}
+        </label>
+        <textarea
+          rows={8}
+          value={response}
+          onChange={(e) => setResponse(e.target.value)}
+          placeholder="Write a personalised response to the applicant…"
+          className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent resize-y"
+        />
+        <p className="text-xs text-brand-slate mt-1">
+          {response.trim() ? `${response.trim().length} characters` : "No response written yet"}
+        </p>
+      </div>
+
+      {/* Schedule selector — hidden if already sent */}
+      {!isSent && (
+        <div>
+          <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide mb-2">
+            Send On
+          </p>
+          <div className="flex gap-3">
+            <label className={`flex-1 cursor-pointer`}>
+              <input
+                type="radio"
+                name={`schedule-${applicant.id}`}
+                value="tuesday"
+                checked={scheduleDay === "tuesday"}
+                onChange={() => setScheduleDay("tuesday")}
+                className="peer sr-only"
+              />
+              <div className={`border rounded-lg px-4 py-2 text-center text-sm font-medium transition-all peer-checked:border-brand-green peer-checked:bg-brand-green/5 peer-checked:text-brand-green-dark ${scheduleDay === "tuesday" ? "border-brand-green bg-brand-green/5 text-brand-green-dark" : "border-brand-line text-brand-slate"}`}>
+                Tuesday
+                <span className="block text-xs font-normal mt-0.5">
+                  {getNextDateForDayLabel("tuesday")}
+                </span>
+              </div>
+            </label>
+            <label className="flex-1 cursor-pointer">
+              <input
+                type="radio"
+                name={`schedule-${applicant.id}`}
+                value="friday"
+                checked={scheduleDay === "friday"}
+                onChange={() => setScheduleDay("friday")}
+                className="peer sr-only"
+              />
+              <div className={`border rounded-lg px-4 py-2 text-center text-sm font-medium transition-all peer-checked:border-brand-green peer-checked:bg-brand-green/5 peer-checked:text-brand-green-dark ${scheduleDay === "friday" ? "border-brand-green bg-brand-green/5 text-brand-green-dark" : "border-brand-line text-brand-slate"}`}>
+                Friday
+                <span className="block text-xs font-normal mt-0.5">
+                  {getNextDateForDayLabel("friday")}
+                </span>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        {!isSent && (
+          <Button
+            variant="primary"
+            disabled={savingId === applicant.id}
+            onClick={saveAndQueue}
+          >
+            {savingId === applicant.id ? "Saving…" : isQueued ? "Update Queue" : "Save & Queue"}
+          </Button>
+        )}
+        {isQueued && !isSent && (
+          <Button
+            variant="secondary"
+            disabled={savingId === applicant.id}
+            onClick={clearQueue}
+          >
+            Remove from Queue
+          </Button>
+        )}
+      </div>
+
+      {/* Feedback message */}
+      {feedback && (
+        <p className={`text-sm ${feedback.type === "error" ? "text-red-600" : "text-brand-green-dark"}`}>
+          {feedback.msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns the next upcoming Tuesday or Friday date string (YYYY-MM-DD). */
+function getNextDateForDay(day: ScheduleDay): string {
+  const targetDay = day === "tuesday" ? 2 : 5; // getDay(): Tue=2, Fri=5
+  const today = new Date();
+  const todayDay = today.getDay();
+  let daysToAdd: number;
+
+  if (todayDay === targetDay) {
+    // Today is the target — return today (they want midnight tonight)
+    const d = new Date(today);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  }
+
+  if (todayDay < targetDay) {
+    daysToAdd = targetDay - todayDay;
+  } else {
+    // Past today this week, add difference to next week's target
+    daysToAdd = 7 - todayDay + targetDay;
+  }
+
+  const result = new Date(today);
+  result.setDate(result.getDate() + daysToAdd);
+  return result.toISOString().slice(0, 10);
+}
+
+/** Human-readable label like "8 Jul" for the next upcoming day. */
+function getNextDateForDayLabel(day: ScheduleDay): string {
+  const dateStr = getNextDateForDay(day);
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+  });
 }

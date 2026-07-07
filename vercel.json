@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/run-review-batch",
+      "schedule": "0 22 * * 2,5"
+    },
+    {
+      "path": "/api/cron/send-responses",
+      "schedule": "0 22 * * 2,5"
+    }
+  ]
+}
