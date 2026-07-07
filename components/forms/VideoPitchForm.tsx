@@ -11,14 +11,15 @@ export function VideoPitchForm() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [videoLink, setVideoLink] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmRecorded, setConfirmRecorded] = useState(false);
+const [confirmAccessible, setConfirmAccessible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!confirmed) {
+    if (!confirmRecorded || !confirmAccessible) {
       setError("Please confirm both checkboxes before submitting.");
       return;
     }
@@ -93,6 +94,12 @@ export function VideoPitchForm() {
         required
         hint="Make sure to upload your video to YouTube as an Unlisted video."
       >
+        <p className="text-sm text-brand-slate mb-2">
+          Your pitch video must be between{" "}
+          <strong className="text-brand-charcoal">3 to 5 minutes</strong>,
+          clear and authentic. This is your opportunity to communicate the
+          strength of your idea.
+        </p>
         <TextInput
           required
           type="url"
@@ -102,22 +109,25 @@ export function VideoPitchForm() {
         />
       </Field>
 
+      <label className="block text-sm font-semibold text-brand-charcoal mb-2">
+        Confirmation Checkbox <span className="text-red-500">*</span>
+      </label>
       <div className="space-y-3 mb-6">
         <CheckboxField
           label="I confirm that I recorded this video myself and the information provided is accurate."
-          checked={confirmed}
-          onChange={(e) => setConfirmed(e.target.checked)}
+          checked={confirmRecorded}
+          onChange={(e) => setConfirmRecorded(e.target.checked)}
         />
         <CheckboxField
           label="I understand that inaccessible videos may disqualify me."
-          checked={confirmed}
-          onChange={(e) => setConfirmed(e.target.checked)}
+          checked={confirmAccessible}
+          onChange={(e) => setConfirmAccessible(e.target.checked)}
         />
       </div>
 
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
-      <Button type="submit" disabled={submitting}>
+      <Button type="submit" variant="formSubmit" disabled={submitting}>
         {submitting ? "Submitting..." : "Submit Video Pitch"}
       </Button>
     </form>

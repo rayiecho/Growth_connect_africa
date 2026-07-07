@@ -9,6 +9,8 @@ export function VerificationForm() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [lpxId, setLpxId] = useState("");
+  const [verificationFile, setVerificationFile] = useState<File | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [confirmAccurate, setConfirmAccurate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -17,8 +19,12 @@ export function VerificationForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    if (!verificationFile || !receiptFile) {
+      setError("Please upload both the verification form PDF and your payment receipt.");
+      return;
+    }
     if (!confirmAccurate) {
-      setError("Please confirm the accuracy checkbox before submitting.");
+      setError("Please confirm the checkbox before submitting.");
       return;
     }
 
@@ -28,7 +34,6 @@ export function VerificationForm() {
     const supabase = createClient();
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Look up the applicant by email — same pattern as the video-pitch form.
     const { data: applicant, error: lookupError } = await supabase
       .from("applicants")
       .select("id")
@@ -43,13 +48,34 @@ export function VerificationForm() {
       return;
     }
 
+    // Upload both files to Storage, under a folder named for this applicant.
+    const folder = applicant.id;
+    const verificationPath = `${folder}/verification-form-${Date.now()}-${verificationFile.name}`;
+    const receiptPath = `${folder}/payment-receipt-${Date.now()}-${receiptFile.name}`;
+
+    const { error: uploadError1 } = await supabase.storage
+      .from("verification-uploads")
+      .upload(verificationPath, verificationFile);
+
+    const { error: uploadError2 } = await supabase.storage
+      .from("verification-uploads")
+      .upload(receiptPath, receiptFile);
+
+    if (uploadError1 || uploadError2) {
+      setSubmitting(false);
+      setError("Something went wrong uploading your files. Please try again.");
+      return;
+    }
+
     const { error: insertError } = await supabase.from("verifications").insert({
       applicant_id: applicant.id,
       email: normalizedEmail,
-      lpx_id: lpxId.trim(),
+      lpx_id: lpxId.trim() || null,
       form_submitted: true,
       submitted_at: new Date().toISOString(),
       review_status: "Pending",
+      verification_form_path: verificationPath,
+      payment_receipt_path: receiptPath,
     });
 
     setSubmitting(false);
@@ -80,11 +106,20 @@ export function VerificationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="max-w-xl">
+      <h3 className="text-lg font-semibold text-brand-charcoal mb-2">Before You Submit</h3>
+      <p className="text-brand-slate mb-2">Please ensure that:</p>
+      <ul className="list-disc list-inside text-brand-slate mb-8 space-y-1">
+        <li>You have obtained your LaunchPadX ID</li>
+        <li>You have completed your verification payment</li>
+        <li>You have filled the Founder &amp; Business Verification Form accurately</li>
+        <li>Your completed form has been saved as a PDF</li>
+      </ul>
+
       <Field label="Full Name" required>
         <TextInput required value={fullName} onChange={(e) => setFullName(e.target.value)} />
       </Field>
 
-      <Field label="Email" required>
+      <Field label="Email Address" required>
         <TextInput
           required
           type="email"
@@ -93,32 +128,50 @@ export function VerificationForm() {
         />
       </Field>
 
-      <Field label="LaunchPadX ID" required>
-        <TextInput required value={lpxId} onChange={(e) => setLpxId(e.target.value)} />
+      <Field label="LaunchPadX ID">
+        <TextInput value={lpxId} onChange={(e) => setLpxId(e.target.value)} />
       </Field>
 
-      <div className="rounded-lg border border-dashed border-brand-line p-6 text-center text-brand-slate mb-6">
-        <p className="font-medium text-brand-charcoal mb-1">File uploads coming soon</p>
-        <p className="text-sm">
-          Verification form PDF and payment receipt upload will be added once
-          Supabase Storage is wired in. For now, submitting this form records
-          your LaunchPadX ID and marks your verification as received.
-        </p>
+      <Field
+        label="Upload Verification Form (PDF)"
+        required
+        hint="Download verification form here"
+      >
+        <input
+          type="file"
+          accept="application/pdf"
+          required
+          onChange={(e) => setVerificationFile(e.target.files?.[0] ?? null)}
+          className="block w-full text-sm text-brand-slate file:mr-4 file:rounded-pill file:border-0 file:bg-brand-green file:px-4 file:py-2 file:text-white file:font-medium hover:file:bg-brand-green-dark"
+        />
+      </Field>
+
+      <Field
+        label="Upload Payment Receipt"
+        required
+        hint="Upload the Paystack receipt sent to your email"
+      >
+        <input
+          type="file"
+          required
+          onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+          className="block w-full text-sm text-brand-slate file:mr-4 file:rounded-pill file:border-0 file:bg-brand-green file:px-4 file:py-2 file:text-white file:font-medium hover:file:bg-brand-green-dark"
+        />
+      </Field>
+
+      <div className="mb-6">
+        <CheckboxField
+          label="I confirm that the information provided is accurate and that I have completed the required verification payment."
+          checked={confirmAccurate}
+          onChange={(e) => setConfirmAccurate(e.target.checked)}
+        />
       </div>
 
-      <CheckboxField
-        label="I confirm that all information provided is accurate to the best of my knowledge."
-        checked={confirmAccurate}
-        onChange={(e) => setConfirmAccurate(e.target.checked)}
-      />
+      {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
-      {error && <p className="text-sm text-red-500 mt-4">{error}</p>}
-
-      <div className="mt-8">
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "Submitting..." : "Submit Verification"}
-        </Button>
-      </div>
+      <Button type="submit" disabled={submitting}>
+        {submitting ? "Submitting..." : "Submit"}
+      </Button>
     </form>
   );
 }

@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/Button";
 import { Field, TextInput, Select, CheckboxField } from "@/components/ui/Input";
 import { Tabs } from "@/components/ui/Tabs";
 
-// NOTE: only "Personal & Contact Details" fields are confirmed from the live
-// site. The other four steps are placeholders — swap in the real fields
-// once §0 of the build plan is closed (Ninja Forms export from Tunji).
 const STEPS = [
   "Personal & Contact Details",
   "Business & Idea Overview",
@@ -17,8 +14,47 @@ const STEPS = [
   "Disclaimers & Agreements",
 ];
 
+const BUSINESS_STAGES = ["Just an idea", "Early stage business", "Existing business", "Scaling business"];
+const INDUSTRIES = [
+  "Fashion",
+  "Food / Beverage",
+  "Tech / Digital",
+  "Agriculture",
+  "Retail / Commerce",
+  "Beauty & Lifestyle",
+  "Education",
+  "Creative / Media",
+  "Health & Wellness",
+  "Other (Please specify in next question)",
+];
+const REVENUE_OPTIONS = ["Yes, consistently", "Yes, but not stable yet", "Not yet", "I haven't started operations"];
+const CHALLENGE_OPTIONS = [
+  "Lack of business knowledge",
+  "Product development",
+  "Operations and systems",
+  "Team challenges",
+  "Market access",
+  "Other",
+];
+
+const COMMITMENT_STATEMENTS = [
+  "I understand that submitting this application does not guarantee admission into LaunchPadX or selection for funding opportunities.",
+  "I understand that my application will be reviewed and only qualified applicants will proceed to the next stage.",
+  "I understand that if selected, I will be required to submit a Founder Video Pitch within the specified timeline.",
+  "I understand that progression into the program requires completion of the Funding Qualification Stage.",
+  "I understand that founders who fail to complete required stages within the stated timelines may lose their place in the qualification process.",
+  "I understand that participation in LaunchPadX requires active engagement and completion of program activities and assignments.",
+  "I confirm that all information submitted in this application is accurate and truthful to the best of my knowledge.",
+  "I am committed to completing the LaunchPadX qualification process and participating fully if selected to proceed.",
+];
+
+const DISCLAIMER_STATEMENTS = [
+  "I confirm that all information provided is accurate.",
+  "I understand the structure and expectations of this program.",
+  "I understand that progression is competitive and performance-based.",
+];
+
 type FormState = {
-  // Section 1 — confirmed live fields
   firstName: string;
   lastName: string;
   phone: string;
@@ -29,31 +65,27 @@ type FormState = {
   linkedin: string;
   businessSocial: string;
 
-  // Section 2 — Business & Idea Overview (drafted pending Tunji's confirmation)
   businessName: string;
-  industry: string;
   businessStage: string;
+  industry: string;
+  otherIndustry: string;
   businessDescription: string;
   problemSolved: string;
   targetCustomers: string;
-  monthlyRevenue: string;
-  useOfFunds: string;
-
-  // Section 3 — The Capital Readiness (drafted pending Tunji's confirmation)
-  seekingFunding: string;
-  fundingAmount: string;
   businessRegistered: string;
-  registrationNumber: string;
-  existingInvestors: string;
+  generatesRevenue: string;
+  revenueProgress: string;
+  growthPotential: string;
+  longTermVision: string;
 
-  // Section 4 — Commitment (drafted pending Tunji's confirmation)
-  hoursPerWeek: string;
-  availableForSessions: string;
+  useOfFunds: string;
+  biggestChallenges: string[];
+  attendLagosEvent: string;
 
-  // Section 5 — Disclaimers & Agreements (drafted pending Tunji's confirmation)
-  confirmAccurate: boolean;
-  confirmNoGuarantee: boolean;
-  consentDataUse: boolean;
+  whyConsidered: string;
+  commitmentChecks: boolean[];
+
+  disclaimerChecks: boolean[];
 };
 
 const initialState: FormState = {
@@ -67,23 +99,23 @@ const initialState: FormState = {
   linkedin: "",
   businessSocial: "",
   businessName: "",
-  industry: "",
   businessStage: "",
+  industry: "",
+  otherIndustry: "",
   businessDescription: "",
   problemSolved: "",
   targetCustomers: "",
-  monthlyRevenue: "",
-  useOfFunds: "",
-  seekingFunding: "",
-  fundingAmount: "",
   businessRegistered: "",
-  registrationNumber: "",
-  existingInvestors: "",
-  hoursPerWeek: "",
-  availableForSessions: "",
-  confirmAccurate: false,
-  confirmNoGuarantee: false,
-  consentDataUse: false,
+  generatesRevenue: "",
+  revenueProgress: "",
+  growthPotential: "",
+  longTermVision: "",
+  useOfFunds: "",
+  biggestChallenges: [],
+  attendLagosEvent: "",
+  whyConsidered: "",
+  commitmentChecks: Array(COMMITMENT_STATEMENTS.length).fill(false),
+  disclaimerChecks: Array(DISCLAIMER_STATEMENTS.length).fill(false),
 };
 
 export function ApplicationForm() {
@@ -93,14 +125,43 @@ export function ApplicationForm() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const update = (field: keyof FormState, value: string | boolean) =>
+  const update = (field: keyof FormState, value: string | boolean | string[] | boolean[]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const toggleChallenge = (option: string) => {
+    setForm((prev) => ({
+      ...prev,
+      biggestChallenges: prev.biggestChallenges.includes(option)
+        ? prev.biggestChallenges.filter((c) => c !== option)
+        : [...prev.biggestChallenges, option],
+    }));
+  };
+
+  const toggleCommitment = (i: number) => {
+    setForm((prev) => {
+      const next = [...prev.commitmentChecks];
+      next[i] = !next[i];
+      return { ...prev, commitmentChecks: next };
+    });
+  };
+
+  const toggleDisclaimer = (i: number) => {
+    setForm((prev) => {
+      const next = [...prev.disclaimerChecks];
+      next[i] = !next[i];
+      return { ...prev, disclaimerChecks: next };
+    });
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!form.confirmAccurate || !form.confirmNoGuarantee || !form.consentDataUse) {
-      setError("Please confirm all three disclaimer checkboxes before submitting.");
+    if (form.commitmentChecks.some((c) => !c)) {
+      setError("Please confirm every Commitment Confirmation statement before submitting.");
+      return;
+    }
+    if (form.disclaimerChecks.some((c) => !c)) {
+      setError("Please confirm every Disclaimers & Agreements statement before submitting.");
       return;
     }
 
@@ -112,29 +173,30 @@ export function ApplicationForm() {
       first_name: form.firstName,
       last_name: form.lastName,
       phone: form.phone,
-      email: form.email.trim().toLowerCase(), // normalize — the whole system joins on this
+      email: form.email.trim().toLowerCase(),
       age_range: form.ageRange,
       gender: form.gender,
       state_country: form.stateCountry,
       linkedin: form.linkedin || null,
       business_social: form.businessSocial || null,
-      // NOTE: these columns need adding to the applicants table — see the
-      // ALTER TABLE statement noted in the README update accompanying this file.
       business_name: form.businessName,
-      industry: form.industry,
       business_stage: form.businessStage,
+      industry: form.industry,
+      other_industry: form.otherIndustry || null,
       business_description: form.businessDescription,
       problem_solved: form.problemSolved,
       target_customers: form.targetCustomers,
-      monthly_revenue: form.monthlyRevenue || null,
-      use_of_funds: form.useOfFunds,
-      seeking_funding: form.seekingFunding,
-      funding_amount: form.fundingAmount || null,
       business_registered: form.businessRegistered,
-      registration_number: form.registrationNumber || null,
-      existing_investors: form.existingInvestors || null,
-      hours_per_week: form.hoursPerWeek,
-      available_for_sessions: form.availableForSessions,
+      generates_revenue: form.generatesRevenue,
+      revenue_progress: form.revenueProgress || null,
+      growth_potential: form.growthPotential,
+      long_term_vision: form.longTermVision,
+      use_of_funds: form.useOfFunds,
+      biggest_challenges: form.biggestChallenges.join(", "),
+      attend_lagos_event: form.attendLagosEvent,
+      why_considered: form.whyConsidered,
+      commitment_confirmed: true,
+      disclaimers_accepted: true,
       date_applied: new Date().toISOString(),
       current_stage: "Application Submitted",
       current_status: "Active",
@@ -174,51 +236,38 @@ export function ApplicationForm() {
           <h3 className="text-lg font-semibold text-brand-charcoal mb-2">
             Tell Us About Yourself
           </h3>
-          <p className="text-brand-slate mb-6">
+          <p className="text-brand-slate mb-4">
             This section helps us identify and communicate with you properly
-            throughout the LaunchPadX qualification process.
+            throughout the LaunchPadX qualification process. Please confirm:
           </p>
+          <ul className="list-disc list-inside text-brand-slate mb-4 space-y-1">
+            <li>Your details are accurate</li>
+            <li>Your contact information is active</li>
+            <li>Your WhatsApp number is correct</li>
+          </ul>
+          <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
+            <span aria-hidden="true">⚠️</span>
+            <p className="text-sm text-brand-slate">
+              <strong className="text-brand-charcoal">Important:</strong>{" "}
+              Most communication and updates regarding the program will
+              happen through email and community channels.
+            </p>
+          </div>
 
           <Field label="First Name" required>
-            <TextInput
-              required
-              value={form.firstName}
-              onChange={(e) => update("firstName", e.target.value)}
-            />
+            <TextInput required value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
           </Field>
-
           <Field label="Last Name" required>
-            <TextInput
-              required
-              value={form.lastName}
-              onChange={(e) => update("lastName", e.target.value)}
-            />
+            <TextInput required value={form.lastName} onChange={(e) => update("lastName", e.target.value)} />
           </Field>
-
           <Field label="Phone Number (WhatsApp Active)" required>
-            <TextInput
-              required
-              type="tel"
-              value={form.phone}
-              onChange={(e) => update("phone", e.target.value)}
-            />
+            <TextInput required type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
           </Field>
-
           <Field label="Email" required>
-            <TextInput
-              required
-              type="email"
-              value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-            />
+            <TextInput required type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
           </Field>
-
           <Field label="Age Range" required>
-            <Select
-              required
-              value={form.ageRange}
-              onChange={(e) => update("ageRange", e.target.value)}
-            >
+            <Select required value={form.ageRange} onChange={(e) => update("ageRange", e.target.value)}>
               <option value="">Select</option>
               <option>Under 18</option>
               <option>18–24</option>
@@ -227,82 +276,65 @@ export function ApplicationForm() {
               <option>45+</option>
             </Select>
           </Field>
-
           <Field label="Gender" required>
-            <Select
-              required
-              value={form.gender}
-              onChange={(e) => update("gender", e.target.value)}
-            >
+            <Select required value={form.gender} onChange={(e) => update("gender", e.target.value)}>
               <option value="">Select</option>
               <option>Male</option>
               <option>Female</option>
             </Select>
           </Field>
-
           <Field label="State/Country" required>
-            <TextInput
-              required
-              value={form.stateCountry}
-              onChange={(e) => update("stateCountry", e.target.value)}
-            />
+            <TextInput required value={form.stateCountry} onChange={(e) => update("stateCountry", e.target.value)} />
           </Field>
-
           <Field label="LinkedIn Profile (Optional)">
-            <TextInput
-              value={form.linkedin}
-              onChange={(e) => update("linkedin", e.target.value)}
-            />
+            <TextInput value={form.linkedin} onChange={(e) => update("linkedin", e.target.value)} />
           </Field>
-
           <Field label="Business Social Media Handle (Optional)">
-            <TextInput
-              value={form.businessSocial}
-              onChange={(e) => update("businessSocial", e.target.value)}
-            />
+            <TextInput value={form.businessSocial} onChange={(e) => update("businessSocial", e.target.value)} />
           </Field>
         </div>
       )}
 
       {step === 1 && (
         <div>
-          <p className="text-sm text-brand-slate italic mb-6">
-            Draft fields — pending Tunji&apos;s confirmation against the live
-            Ninja Forms export. Functional now so the form is testable end to
-            end; adjust once confirmed.
+          <h3 className="text-lg font-semibold text-brand-charcoal mb-2">
+            Tell Us About Your Business or Idea
+          </h3>
+          <p className="text-brand-slate mb-6">
+            LaunchPadX is designed for entrepreneurs at different stages —
+            early-stage ideas, existing businesses, growing ventures, and
+            scalable startups. You do not need to have everything figured out
+            yet. What matters most is clarity, potential, willingness to
+            learn, and readiness to build properly.
           </p>
 
-          <Field label="Business Name" required>
-            <TextInput
-              required
-              value={form.businessName}
-              onChange={(e) => update("businessName", e.target.value)}
-            />
+          <Field label="Business Name (If you don't have one, write a working name)" required>
+            <TextInput required value={form.businessName} onChange={(e) => update("businessName", e.target.value)} />
           </Field>
 
-          <Field label="Industry" required>
-            <TextInput
-              required
-              value={form.industry}
-              onChange={(e) => update("industry", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Business Stage" required>
-            <Select
-              required
-              value={form.businessStage}
-              onChange={(e) => update("businessStage", e.target.value)}
-            >
+          <Field label="Which best describes your current stage?" required>
+            <Select required value={form.businessStage} onChange={(e) => update("businessStage", e.target.value)}>
               <option value="">Select</option>
-              <option>Idea stage</option>
-              <option>MVP / Prototype</option>
-              <option>Registered, pre-revenue</option>
-              <option>Revenue-generating</option>
+              {BUSINESS_STAGES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
             </Select>
           </Field>
 
-          <Field label="Briefly describe your business or idea" required>
+          <Field label="What industry is your business in?" required>
+            <Select required value={form.industry} onChange={(e) => update("industry", e.target.value)}>
+              <option value="">Select</option>
+              {INDUSTRIES.map((i) => (
+                <option key={i}>{i}</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label='If you chose "other" above, please specify here'>
+            <TextInput value={form.otherIndustry} onChange={(e) => update("otherIndustry", e.target.value)} />
+          </Field>
+
+          <Field label="Describe your business or idea in one paragraph (What you do, how it works, and for whom)" required>
             <textarea
               required
               rows={4}
@@ -312,41 +344,61 @@ export function ApplicationForm() {
             />
           </Field>
 
-          <Field label="What problem are you solving?" required>
+          <Field label="What problem does your business solve?" required>
+            <TextInput required value={form.problemSolved} onChange={(e) => update("problemSolved", e.target.value)} />
+          </Field>
+
+          <Field label="Who is your target customer or audience?" required>
+            <TextInput required value={form.targetCustomers} onChange={(e) => update("targetCustomers", e.target.value)} />
+          </Field>
+
+          <Field label="Is your business registered?" required>
+            <Select required value={form.businessRegistered} onChange={(e) => update("businessRegistered", e.target.value)}>
+              <option value="">Select</option>
+              <option>Yes</option>
+              <option>No</option>
+            </Select>
+          </Field>
+          <p className="text-sm text-brand-slate -mt-4 mb-6">
+            If no, kindly note that, to qualify for the funding stage of the
+            program, you&apos;ll be required to register your business within
+            the program structure with our business registration partner.
+          </p>
+
+          <Field label="Do you currently generate revenue from this business?" required>
+            <Select required value={form.generatesRevenue} onChange={(e) => update("generatesRevenue", e.target.value)}>
+              <option value="">Select</option>
+              {REVENUE_OPTIONS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="If Yes, Briefly Describe Your Revenue or Progress So Far">
             <textarea
-              required
-              rows={3}
-              value={form.problemSolved}
-              onChange={(e) => update("problemSolved", e.target.value)}
+              rows={4}
+              value={form.revenueProgress}
+              onChange={(e) => update("revenueProgress", e.target.value)}
               className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
             />
           </Field>
 
-          <Field label="Who are your target customers?" required>
-            <TextInput
-              required
-              value={form.targetCustomers}
-              onChange={(e) => update("targetCustomers", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Current monthly revenue (if any)">
-            <TextInput
-              value={form.monthlyRevenue}
-              onChange={(e) => update("monthlyRevenue", e.target.value)}
-            />
-          </Field>
-
-          <Field
-            label="If selected, how would you use the funding/support?"
-            required
-            hint="This matches the program's 'Submit Your Idea and Use of Funds' framing."
-          >
+          <Field label="Why Do You Believe Your Business Has Growth Potential?" required>
             <textarea
               required
-              rows={3}
-              value={form.useOfFunds}
-              onChange={(e) => update("useOfFunds", e.target.value)}
+              rows={4}
+              value={form.growthPotential}
+              onChange={(e) => update("growthPotential", e.target.value)}
+              className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
+            />
+          </Field>
+
+          <Field label="What Is Your Long-Term Vision for This Business?" required>
+            <textarea
+              required
+              rows={4}
+              value={form.longTermVision}
+              onChange={(e) => update("longTermVision", e.target.value)}
               className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
             />
           </Field>
@@ -355,138 +407,150 @@ export function ApplicationForm() {
 
       {step === 2 && (
         <div>
-          <p className="text-sm text-brand-slate italic mb-6">
-            Draft fields — pending Tunji&apos;s confirmation.
+          <h3 className="text-lg font-semibold text-brand-charcoal mb-2">
+            Understanding The Capital
+          </h3>
+          <p className="text-brand-slate mb-6">
+            The Capital is the final pitch and funding stage within the
+            LaunchPadX pipeline. Participants who complete the qualification
+            process may be shortlisted to pitch their business, present their
+            vision, and compete for support and funding opportunities.
+            Selected businesses may receive ₦1,000,000 in support (₦500,000
+            cash support + ₦500,000 business growth packages). Businesses
+            that demonstrate strong performance and accountability may later
+            qualify for up to ₦20 million in credit financing and potential
+            equity funding opportunities of up to $50,000. This stage is
+            highly competitive, and progression is based on evaluation and
+            qualification performance.
           </p>
 
-          <Field label="Are you currently seeking funding?" required>
-            <Select
+          <Field label="If Selected for Funding, What Would You Use the Support For?" required>
+            <textarea
               required
-              value={form.seekingFunding}
-              onChange={(e) => update("seekingFunding", e.target.value)}
-            >
+              rows={5}
+              value={form.useOfFunds}
+              onChange={(e) => update("useOfFunds", e.target.value)}
+              className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
+            />
+          </Field>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-brand-charcoal mb-2">
+              What is your biggest challenge currently? <span className="text-red-500">*</span>
+            </label>
+            <p className="text-sm text-brand-slate italic mb-3">You can select more than one</p>
+            <div className="space-y-2 border border-brand-line rounded-lg p-4">
+              {CHALLENGE_OPTIONS.map((c) => (
+                <CheckboxField
+                  key={c}
+                  label={c}
+                  checked={form.biggestChallenges.includes(c)}
+                  onChange={() => toggleChallenge(c)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <Field label="If Selected for The Capital Live Event, Would You Be Able to Attend Physically in Lagos?" required>
+            <Select required value={form.attendLagosEvent} onChange={(e) => update("attendLagosEvent", e.target.value)}>
               <option value="">Select</option>
               <option>Yes</option>
               <option>No</option>
             </Select>
-          </Field>
-
-          <Field label="How much funding are you seeking?">
-            <TextInput
-              value={form.fundingAmount}
-              onChange={(e) => update("fundingAmount", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Is your business formally registered?" required>
-            <Select
-              required
-              value={form.businessRegistered}
-              onChange={(e) => update("businessRegistered", e.target.value)}
-            >
-              <option value="">Select</option>
-              <option>Yes</option>
-              <option>No</option>
-              <option>In progress</option>
-            </Select>
-          </Field>
-
-          <Field label="Business registration number (if applicable)">
-            <TextInput
-              value={form.registrationNumber}
-              onChange={(e) => update("registrationNumber", e.target.value)}
-            />
-          </Field>
-
-          <Field label="Do you have existing investors or partners?">
-            <TextInput
-              value={form.existingInvestors}
-              onChange={(e) => update("existingInvestors", e.target.value)}
-            />
           </Field>
         </div>
       )}
 
       {step === 3 && (
         <div>
-          <p className="text-sm text-brand-slate italic mb-6">
-            Draft fields — pending Tunji&apos;s confirmation.
+          <h3 className="text-lg font-semibold text-brand-charcoal mb-2">Why We Ask This</h3>
+          <p className="text-brand-slate mb-6">
+            LaunchPadX is designed for founders who are serious about building
+            and growing their businesses. The qualification process involves
+            multiple stages, including application review, founder
+            assessment, funding qualification, and participation in the
+            Investment Readiness Program. By continuing, you acknowledge that
+            progression through the program requires commitment, timely
+            action, and active participation. Please review the statements
+            below carefully before proceeding.
           </p>
 
-          <Field label="How many hours per week can you commit to this program?" required>
-            <Select
+          <Field label="Why Should You Be Considered for This Opportunity?" required>
+            <textarea
               required
-              value={form.hoursPerWeek}
-              onChange={(e) => update("hoursPerWeek", e.target.value)}
-            >
-              <option value="">Select</option>
-              <option>Under 5 hours</option>
-              <option>5–10 hours</option>
-              <option>10–20 hours</option>
-              <option>20+ hours</option>
-            </Select>
+              rows={5}
+              value={form.whyConsidered}
+              onChange={(e) => update("whyConsidered", e.target.value)}
+              className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
+            />
           </Field>
 
-          <Field label="Are you available for scheduled review sessions and program dates?" required>
-            <Select
-              required
-              value={form.availableForSessions}
-              onChange={(e) => update("availableForSessions", e.target.value)}
-            >
-              <option value="">Select</option>
-              <option>Yes, fully available</option>
-              <option>Mostly, with some conflicts</option>
-              <option>Unsure</option>
-            </Select>
-          </Field>
+          <label className="block text-sm font-semibold text-brand-charcoal mb-2">
+            Commitment Confirmation <span className="text-red-500">*</span>
+          </label>
+          <div className="space-y-3">
+            {COMMITMENT_STATEMENTS.map((s, i) => (
+              <CheckboxField
+                key={i}
+                label={s}
+                checked={form.commitmentChecks[i]}
+                onChange={() => toggleCommitment(i)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {step === 4 && (
         <div>
-          <p className="text-sm text-brand-slate italic mb-6">
-            Draft fields — pending Tunji&apos;s confirmation, particularly the
-            data-consent wording (should be reviewed against actual NDPR
-            practice, not just this placeholder).
-          </p>
+          <h3 className="text-lg font-semibold text-brand-charcoal mb-2">Important Information</h3>
+          <p className="text-brand-slate mb-4">Please read carefully before submitting your application.</p>
+          <p className="text-brand-slate mb-2">By applying to LaunchPadX, you understand and agree that:</p>
+          <ul className="list-disc list-inside text-brand-slate mb-6 space-y-1">
+            <li>LaunchPadX is a qualification and growth pipeline</li>
+            <li>Application does not guarantee funding or selection</li>
+            <li>Progression is based on qualification performance and evaluation</li>
+            <li>Funding decisions are made through structured selection processes</li>
+            <li>Growth Connect reserves the right to determine qualification and selection outcomes</li>
+            <li>Participants may be required to complete verification and compliance processes at different stages</li>
+            <li>Deadlines and program requirements must be adhered to</li>
+          </ul>
+          <p className="text-brand-slate mb-4">By proceeding, you confirm that:</p>
 
-          <div className="space-y-4">
-            <CheckboxField
-              label="I confirm that all information provided in this application is accurate to the best of my knowledge."
-              checked={form.confirmAccurate}
-              onChange={(e) => update("confirmAccurate", e.target.checked)}
-            />
-            <CheckboxField
-              label="I understand that submitting this application does not automatically guarantee funding or selection."
-              checked={form.confirmNoGuarantee}
-              onChange={(e) => update("confirmNoGuarantee", e.target.checked)}
-            />
-            <CheckboxField
-              label="I consent to GrowthConnect storing and processing my information for the purposes of this program."
-              checked={form.consentDataUse}
-              onChange={(e) => update("consentDataUse", e.target.checked)}
-            />
+          <div className="space-y-3">
+            {DISCLAIMER_STATEMENTS.map((s, i) => (
+              <CheckboxField
+                key={i}
+                label={s}
+                checked={form.disclaimerChecks[i]}
+                onChange={() => toggleDisclaimer(i)}
+              />
+            ))}
           </div>
         </div>
       )}
 
       {error && <p className="text-sm text-red-500 mt-4">{error}</p>}
 
-      <div className="flex gap-3 mt-8">
-        {step > 0 && (
-          <Button type="button" variant="secondary" onClick={() => setStep(step - 1)}>
-            Back
-          </Button>
-        )}
-        {step < STEPS.length - 1 ? (
-          <Button type="button" onClick={() => setStep(step + 1)}>
-            Continue
-          </Button>
-        ) : (
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Application"}
-          </Button>
-        )}
+      <div className="flex justify-between mt-8">
+        <div>
+          {step > 0 && (
+            <Button type="button" variant="formNav" onClick={() => setStep(step - 1)}>
+              Previous
+            </Button>
+          )}
+        </div>
+        <div>
+          {step < STEPS.length - 1 ? (
+            <Button type="button" variant="formNav" onClick={() => setStep(step + 1)}>
+              Next
+            </Button>
+          ) : (
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Submitting..." : "Submit"}
+            </Button>
+          )}
+        </div>
       </div>
     </form>
   );

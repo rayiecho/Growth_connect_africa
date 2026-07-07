@@ -15,20 +15,23 @@ export type Applicant = {
   current_status: string;
   date_applied: string;
   industry: string | null;
+  other_industry: string | null;
   business_name: string | null;
   business_stage: string | null;
   business_description: string | null;
   problem_solved: string | null;
   target_customers: string | null;
-  monthly_revenue: string | null;
-  use_of_funds: string | null;
-  seeking_funding: string | null;
-  funding_amount: string | null;
   business_registered: string | null;
-  registration_number: string | null;
-  existing_investors: string | null;
-  hours_per_week: string | null;
-  available_for_sessions: string | null;
+  generates_revenue: string | null;
+  revenue_progress: string | null;
+  growth_potential: string | null;
+  long_term_vision: string | null;
+  use_of_funds: string | null;
+  biggest_challenges: string | null;
+  attend_lagos_event: string | null;
+  why_considered: string | null;
+  commitment_confirmed: boolean | null;
+  disclaimers_accepted: boolean | null;
   state_country: string | null;
   age_range: string | null;
   gender: string | null;
@@ -170,7 +173,6 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                       <td colSpan={6} className="px-6 py-5">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 mb-5 text-sm">
                           <Detail label="Phone" value={a.phone} />
-                          <Detail label="Industry" value={a.industry} />
                           <Detail label="State/Country" value={a.state_country} />
                           <Detail label="Age Range" value={a.age_range} />
                           <Detail label="Gender" value={a.gender} />
@@ -178,43 +180,30 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                           <Detail label="Business Social" value={a.business_social} />
                           <Detail label="Business Name" value={a.business_name} />
                           <Detail label="Business Stage" value={a.business_stage} />
+                          <Detail label="Industry" value={a.industry} />
+                          <Detail label="Other Industry" value={a.other_industry} />
                           <Detail label="Target Customers" value={a.target_customers} />
-                          <Detail label="Monthly Revenue" value={a.monthly_revenue} />
-                          <Detail label="Seeking Funding" value={a.seeking_funding} />
-                          <Detail label="Funding Amount" value={a.funding_amount} />
                           <Detail label="Business Registered" value={a.business_registered} />
-                          <Detail label="Registration Number" value={a.registration_number} />
-                          <Detail label="Existing Investors" value={a.existing_investors} />
-                          <Detail label="Hours/Week" value={a.hours_per_week} />
-                          <Detail label="Available for Sessions" value={a.available_for_sessions} />
+                          <Detail label="Generates Revenue" value={a.generates_revenue} />
+                          <Detail label="Attend Lagos Event" value={a.attend_lagos_event} />
+                          <Detail
+                            label="Commitment Confirmed"
+                            value={a.commitment_confirmed ? "Yes" : "No"}
+                          />
+                          <Detail
+                            label="Disclaimers Accepted"
+                            value={a.disclaimers_accepted ? "Yes" : "No"}
+                          />
                         </div>
 
-                        <div className="space-y-1 mb-5">
-                          <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">
-                            Business Description
-                          </p>
-                          <p className="text-brand-slate whitespace-pre-wrap">
-                            {a.business_description || "—"}
-                          </p>
-                        </div>
-
-                        <div className="space-y-1 mb-5">
-                          <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">
-                            Problem Solved
-                          </p>
-                          <p className="text-brand-slate whitespace-pre-wrap">
-                            {a.problem_solved || "—"}
-                          </p>
-                        </div>
-
-                        <div className="space-y-1 mb-5">
-                          <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">
-                            Use of Funds
-                          </p>
-                          <p className="text-brand-slate whitespace-pre-wrap">
-                            {a.use_of_funds || "—"}
-                          </p>
-                        </div>
+                        <LongField label="Business Description" value={a.business_description} />
+                        <LongField label="Problem Solved" value={a.problem_solved} />
+                        <LongField label="Revenue Progress" value={a.revenue_progress} />
+                        <LongField label="Growth Potential" value={a.growth_potential} />
+                        <LongField label="Long-Term Vision" value={a.long_term_vision} />
+                        <LongField label="Use of Funds" value={a.use_of_funds} />
+                        <LongField label="Biggest Challenges" value={a.biggest_challenges} />
+                        <LongField label="Why Considered" value={a.why_considered} />
 
                         <AdminFieldsEditor
                           applicant={a}
@@ -246,6 +235,15 @@ function Detail({ label, value }: { label: string; value: string | null }) {
     <div>
       <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">{label}</p>
       <p className="text-brand-slate">{value || "—"}</p>
+    </div>
+  );
+}
+
+function LongField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="space-y-1 mb-5">
+      <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">{label}</p>
+      <p className="text-brand-slate whitespace-pre-wrap">{value || "—"}</p>
     </div>
   );
 }

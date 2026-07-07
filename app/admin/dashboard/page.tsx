@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const { data: applicants } = await supabase
     .from("applicants")
     .select(
-      "id, first_name, last_name, email, phone, current_stage, current_status, date_applied, industry, business_name, business_stage, business_description, problem_solved, target_customers, monthly_revenue, use_of_funds, seeking_funding, funding_amount, business_registered, registration_number, existing_investors, hours_per_week, available_for_sessions, state_country, age_range, gender, linkedin, business_social, assigned_reviewer, notes, next_action_required"
+      "id, first_name, last_name, email, phone, current_stage, current_status, date_applied, industry, other_industry, business_name, business_stage, business_description, problem_solved, target_customers, business_registered, generates_revenue, revenue_progress, growth_potential, long_term_vision, use_of_funds, biggest_challenges, attend_lagos_event, why_considered, commitment_confirmed, disclaimers_accepted, state_country, age_range, gender, linkedin, business_social, assigned_reviewer, notes, next_action_required"
     )
     .order("date_applied", { ascending: false });
 
@@ -22,6 +22,12 @@ export default async function DashboardPage() {
     .from("video_submissions")
     .select(
       "id, applicant_id, video_link, submitted_at, review_status, applicants(first_name, last_name, email)"
+    )
+    .order("submitted_at", { ascending: false });
+    const { data: verifications } = await supabase
+    .from("verifications")
+    .select(
+      "id, applicant_id, email, lpx_id, review_status, form_submitted, submitted_at, verification_form_path, payment_receipt_path, applicants(first_name, last_name, email)"
     )
     .order("submitted_at", { ascending: false });
 
@@ -54,6 +60,7 @@ export default async function DashboardPage() {
         <DashboardTabs
           applicants={applicants ?? []}
           videoSubmissions={(videoSubmissions ?? []) as any}
+          verifications={(verifications ?? []) as any}
         />
       </div>
     </main>

@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, LabelHTMLAttributes, SelectHTMLAttributes } from "react";
+import { InputHTMLAttributes, SelectHTMLAttributes } from "react";
 
 interface FieldProps {
   label: string;
@@ -10,8 +10,8 @@ interface FieldProps {
 
 export function Field({ label, required, hint, error, children }: FieldProps) {
   return (
-    <div className="mb-6">
-      <label className="block font-semibold text-brand-charcoal mb-2">
+    <div className="mb-5">
+      <label className="block font-semibold text-brand-charcoal mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {hint && <p className="text-sm text-brand-slate mb-2">{hint}</p>}
@@ -25,7 +25,7 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal
+      className="w-full rounded-lg border border-brand-line px-4 py-2.5 text-brand-charcoal
         focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent
         placeholder:text-gray-400"
     />
@@ -39,7 +39,7 @@ export function Select({
   return (
     <select
       {...props}
-      className="w-full rounded-lg border border-brand-line px-4 py-3 text-brand-charcoal bg-white
+      className="w-full rounded-lg border border-brand-line px-4 py-2.5 text-brand-charcoal bg-white
         focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent"
     >
       {children}
