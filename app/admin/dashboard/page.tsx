@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
+import { VideoSubmission } from "@/components/admin/VideoSubmissionsTable";
+import { Verification } from "@/components/admin/VerificationsTable";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -59,8 +61,8 @@ export default async function DashboardPage() {
         </h2>
         <DashboardTabs
           applicants={applicants ?? []}
-          videoSubmissions={(videoSubmissions ?? []) as any}
-          verifications={(verifications ?? []) as any}
+          videoSubmissions={(videoSubmissions ?? []) as unknown as VideoSubmission[]}
+          verifications={(verifications ?? []) as unknown as Verification[]}
         />
       </div>
     </main>
