@@ -12,6 +12,8 @@
     "@aws-sdk/client-sesv2": "^3.700.0",
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.45.4",
+    "firebase": "^12.15.0",
+    "firebase-admin": "^14.1.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18"

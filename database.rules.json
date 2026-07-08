@@ -1,0 +1,18 @@
+﻿{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "applicants": {
+      ".indexOn": ["email", "current_stage", "video_invite_window"]
+    },
+    "video_submissions": {
+      ".indexOn": ["applicant_id", "review_status"]
+    },
+    "verifications": {
+      ".indexOn": ["applicant_id", "email", "review_status"]
+    },
+    "templates": {
+      ".read": true
+    }
+  }
+}
