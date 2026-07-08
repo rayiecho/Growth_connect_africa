@@ -1,9 +1,5 @@
 {
   "rules": {
-    // ── Applicants ─────────────────────────────────────────────────────────
-    // Write allowed only from the server (Admin SDK bypasses these checks).
-    // Anonymous clients can read only their own application lookup via the
-    // byEmail index, which itself reveals nothing more than yes/no membership.
     "applicants": {
       ".read": "auth != null && auth.token.admin === true",
       ".write": "auth != null && auth.token.admin === true",
@@ -12,22 +8,17 @@
         "emailResponseStatus",
         "scheduledSendDate",
         "videoInviteWindow",
+        "videoInviteSentAt",
         "currentStatus",
         "currentStage",
         "lastUpdated"
       ]
     },
-
     "applicantsByEmail": {
-      // Anonymous browser can probe whether an email has applied — required
-      // by /apply and /video-pitch. The data returned is just a {applicantId}
-      // pointer, not the applicant's payload.
       ".read": true,
-      ".write": "auth != null && auth.token.admin === true",
-      ".indexOn": ["applicantId"]
+      ".write": "auth != null && auth.token.admin === true"
     },
 
-    // ── Video submissions ──────────────────────────────────────────────────
     "videoSubmissions": {
       ".read": "auth != null && auth.token.admin === true",
       ".write": "auth != null && auth.token.admin === true",
@@ -36,17 +27,16 @@
         "submittedAt",
         "approvedAt",
         "rejectedAt",
-        "inviteEmailSentAt",
+        "verificationInviteSentAt",
+        "trainingEmailSentAt",
         "applicantId"
       ]
     },
     "videoSubmissionsByApplicant": {
       ".read": "auth != null && auth.token.admin === true",
-      ".write": "auth != null && auth.token.admin === true",
-      ".indexOn": ["submittedAt"]
+      ".write": "auth != null && auth.token.admin === true"
     },
 
-    // ── Verifications ──────────────────────────────────────────────────────
     "verifications": {
       ".read": "auth != null && auth.token.admin === true",
       ".write": "auth != null && auth.token.admin === true",
@@ -57,14 +47,29 @@
       ".write": "auth != null && auth.token.admin === true"
     },
 
-    // ── Engine run logs (cron observability) ───────────────────────────────
+    "templates": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+
+    "verificationBatches": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true",
+      ".indexOn": ["batchDate"]
+    },
+
+    "sendLog": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true",
+      ".indexOn": ["applicantId", "templateKey", "sentAt"]
+    },
+
     "engineRunLog": {
       ".read": "auth != null && auth.token.admin === true",
       ".write": "auth != null && auth.token.admin === true",
       ".indexOn": ["ranAt"]
     },
 
-    // ── Default-deny everything else ───────────────────────────────────────
     "$other": {
       ".read": false,
       ".write": false
