@@ -38,13 +38,13 @@ export async function POST(req: NextRequest) {
 
   const { data: template } = await supabaseAdmin
     .from("templates")
-    .select("subject, body")
-    .eq("name", "action_required")
+    .select("subject, html_body")
+    .eq("key", "action_required")
     .single();
 
   const subject = template?.subject ?? "Action Required – GrowthConnect Africa";
   const body =
-    template?.body ??
+    template?.html_body ??
     `<p>Hi ${applicant.first_name},</p>
      <p>We reviewed your video submission and need additional information:</p>
      <p><strong>${feedback}</strong></p>
