@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { clientAuth } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput } from "@/components/ui/Input";
 
@@ -18,18 +19,28 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const cred = await signInWithEmailAndPassword(clientAuth, email, password);
+      const idToken = await cred.user.getIdToken();
 
-    setLoading(false);
-    if (signInError) {
+      const res = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? "Sign in failed.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/admin/dashboard");
+    } catch (err) {
       setError("Incorrect email or password.");
-      return;
+      setLoading(false);
     }
-    router.push("/admin/dashboard");
   }
 
   return (

@@ -1,8 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 
 export async function POST() {
-  const supabase = createClient();
-  await supabase.auth.signOut();
+  const { cookies } = await import("next/headers");
+  cookies().set("session", "", { maxAge: 0, path: "/" });
   redirect("/admin/login");
 }
