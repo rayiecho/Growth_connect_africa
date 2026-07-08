@@ -96,14 +96,26 @@ export async function GET(req: NextRequest) {
           results.errors.push(`Email failed for ${app.email}: ${sendError}`);
         } else {
           results.videoInvitesSent++;
-          // Mark as queued so we don't send again
+          // Mark invite sent + advance stage. Do NOT touch email_response_status —
+          // that's reserved for the admin response queue (send-responses cron).
           await supabaseAdmin
             .from("applicants")
             .update({
-              email_response_status: "queued",
               video_invite_window: appWindow,
+              video_invite_sent_at: today.toISOString(),
+              current_stage: "Video Pitch",
+              last_updated: today.toISOString(),
             })
             .eq("id", app.id);
+
+          // Log the send for audit trail
+          await supabaseAdmin
+            .from("send_log")
+            .insert({
+              applicant_id: app.id,
+              template_key: "video_invite",
+              sent_at: today.toISOString(),
+            });
         }
       }
     }
@@ -155,6 +167,23 @@ export async function GET(req: NextRequest) {
           .from("video_submissions")
           .update({ invite_email_sent_at: today.toISOString() })
           .eq("id", vid.id);
+
+        // Advance applicant stage to reflect verification invite sent
+        await supabaseAdmin
+          .from("applicants")
+          .update({
+            current_stage: "Video Pitch Approved",
+            last_updated: today.toISOString(),
+          })
+          .eq("id", vid.applicant_id);
+
+        await supabaseAdmin
+          .from("send_log")
+          .insert({
+            applicant_id: vid.applicant_id,
+            template_key: "verification_invite",
+            sent_at: today.toISOString(),
+          });
       } else {
         results.errors.push(`Verification email failed for ${applicant.email}`);
       }
@@ -204,6 +233,24 @@ export async function GET(req: NextRequest) {
           .from("video_submissions")
           .update({ invite_email_sent_at: today.toISOString() })
           .eq("id", vid.id);
+
+        // Move applicant to fully rejected stage
+        await supabaseAdmin
+          .from("applicants")
+          .update({
+            current_stage: "Rejected Application",
+            current_status: "Rejected",
+            last_updated: today.toISOString(),
+          })
+          .eq("id", vid.applicant_id);
+
+        await supabaseAdmin
+          .from("send_log")
+          .insert({
+            applicant_id: vid.applicant_id,
+            template_key: "training_rejection",
+            sent_at: today.toISOString(),
+          });
       } else {
         results.errors.push(`Training email failed for ${applicant.email}`);
       }
