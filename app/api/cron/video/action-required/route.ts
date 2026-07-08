@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Submission not found." }, { status: 404 });
   }
 
-  const applicant = sub.applicants as { first_name: string; email: string } | null;
+  const applicant = (Array.isArray(sub.applicants) ? sub.applicants[0] : sub.applicants) as { first_name: string; email: string } | null;
   if (!applicant) {
     return NextResponse.json({ error: "Applicant not found." }, { status: 404 });
   }

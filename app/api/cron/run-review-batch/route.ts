@@ -54,13 +54,11 @@ export async function GET(req: NextRequest) {
         const appDay = new Date(app.date_applied).getDay();
         let appWindow: string;
 
-        // Sat(6)–Mon(1) → 'tue'; Tue(2)–Thu(4) → 'fri'
-        if (appDay === 6 || appDay === 0 || appDay === 1) {
+        // Sat(6)-Tue(2) -> 'tue'; Wed(3)-Fri(5) -> 'fri'
+        if (appDay === 6 || appDay === 0 || appDay === 1 || appDay === 2) {
           appWindow = "tue";
-        } else if (appDay >= 2 && appDay <= 4) {
-          appWindow = "fri";
         } else {
-          continue; // Friday — skip, will be picked up on next Tuesday
+          appWindow = "fri";
         }
 
         // Only process apps that match today's window
@@ -127,7 +125,7 @@ export async function GET(req: NextRequest) {
     results.errors.push(`Fetching approved videos: ${approveError.message}`);
   } else if (approvedVideos?.length) {
     for (const vid of approvedVideos) {
-      const applicant = vid.applicants as { first_name: string; email: string } | null;
+      const applicant = (Array.isArray(vid.applicants) ? vid.applicants[0] : vid.applicants) as { first_name: string; email: string } | null;
       if (!applicant) continue;
 
       const { data: template } = await supabaseAdmin
@@ -175,7 +173,7 @@ export async function GET(req: NextRequest) {
     results.errors.push(`Fetching rejected videos: ${rejectError.message}`);
   } else if (rejectedVideos?.length) {
     for (const vid of rejectedVideos) {
-      const applicant = vid.applicants as { first_name: string; email: string } | null;
+      const applicant = (Array.isArray(vid.applicants) ? vid.applicants[0] : vid.applicants) as { first_name: string; email: string } | null;
       if (!applicant) continue;
 
       const { data: template } = await supabaseAdmin

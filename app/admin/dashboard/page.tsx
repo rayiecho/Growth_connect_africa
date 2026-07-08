@@ -60,8 +60,9 @@ export default async function DashboardPage() {
         </h2>
         <DashboardTabs
           applicants={applicants ?? []}
-videoSubmissions={(videoSubmissions ?? []) as unknown as VideoSubmission[]}
+          videoSubmissions={(videoSubmissions ?? []) as unknown as VideoSubmission[]}
           verifications={(verifications ?? []) as unknown as Verification[]}
+          cronSecret={process.env.CRON_SECRET ?? ""}
         />
       </div>
     </main>
