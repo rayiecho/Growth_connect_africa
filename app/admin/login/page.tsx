@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -65,6 +65,11 @@ export default function AdminLoginPage() {
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Signing in..." : "Sign In"}
         </Button>
+
+        <div className="flex items-center justify-between mt-6 text-sm">
+          <a href="https://growthconnect.africa/" className="text-brand-slate hover:text-brand-green transition-colors">Back to Home</a>
+          <a href="https://lpx.growthconnect.africa/apply" className="text-brand-slate hover:text-brand-green transition-colors">Application Form</a>
+        </div>
       </form>
     </main>
   );

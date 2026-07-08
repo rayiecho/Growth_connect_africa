@@ -1,132 +1,134 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/engine/supabaseAdmin";
-import { sendEmail } from "@/lib/engine/ses";
-import { addCalendarDays } from "@/lib/engine/dates";
+import { sendEmail, mergeTags } from "@/lib/engine/ses";
+import {
+  nextReviewWindow,
+  addCalendarDays,
+  isOnOrBefore,
+  formatDeadline,
+} from "@/lib/engine/dates";
 
 // GET /api/cron/run-review-batch?secret=...
 //
-// Unified scheduler — runs every Tue & Fri at midnight CAT (22:00 UTC).
-//
-// Pipeline:
-//   TUE → sends video invites for Sat–Mon applications
-//   TUE → sends verification emails for approved videos (10+ days ago)
-//   TUE → sends training emails for rejected videos (10+ days ago)
-//   FRI → sends video invites for Tue–Thu applications
-//   FRI → sends verification emails for approved videos (10+ days ago)
-//   FRI → sends training emails for rejected videos (10+ days ago)
-//
+// SCALE-SAFETY DESIGN: bounded batch per invocation (BATCH_SIZE), safe to
+// call repeatedly. Every operation checks "has this already happened?"
+// before acting, so re-calling never double-sends.
+const BATCH_SIZE = 50;
+
+function getApplicant(row: any) {
+  const a = row?.applicants;
+  return Array.isArray(a) ? a[0] : a;
+}
+
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 2=Tue, 5=Fri
-
   const results = {
     videoInvitesSent: 0,
-    verificationEmailsSent: 0,
+    verificationInvitesSent: 0,
     trainingEmailsSent: 0,
     errors: [] as string[],
   };
+  const today = new Date();
 
-  // ── PART A: Video invites ──────────────────────────────────────────────
-  // Determine which window to process today.
-  //   Tue (day=2) → 'tue' window (apps submitted Sat–Mon)
-  //   Fri (day=5) → 'fri' window (apps submitted Tue–Thu)
-  //   Any other day → skip
-  const targetWindow = dayOfWeek === 2 ? "tue" : dayOfWeek === 5 ? "fri" : null;
+  // ============================================================
+  // PART A — Application submitted -> Video Pitch invite
+  // ============================================================
+  const { data: pendingApplicants, error: appError } = await supabaseAdmin
+    .from("applicants")
+    .select("id, email, first_name, date_applied, video_invite_sent_at")
+    .is("video_invite_sent_at", null)
+    .order("date_applied", { ascending: true })
+    .limit(BATCH_SIZE);
 
-  if (targetWindow) {
-    // Mark eligible applications as belonging to this invite window
-    // and send them the video submission email.
-    const { data: windowApps, error: appError } = await supabaseAdmin
-      .from("applicants")
-      .select("id, email, first_name, date_applied")
-      .is("video_invite_window", null)
-      .in("current_stage", ["Application Submitted", "Video Submission"]);
+  if (appError) results.errors.push(`Fetching applicants: ${appError.message}`);
 
-    if (appError) {
-      results.errors.push(`Fetching applicants: ${appError.message}`);
-    } else if (windowApps?.length) {
-      for (const app of windowApps) {
-        const appDay = new Date(app.date_applied).getDay();
-        let appWindow: string;
+  for (const applicant of pendingApplicants ?? []) {
+    try {
+      const window = nextReviewWindow(new Date(applicant.date_applied));
+      if (!isOnOrBefore(window, today)) continue;
 
-        // Sat(6)-Tue(2) -> 'tue'; Wed(3)-Fri(5) -> 'fri'
-        if (appDay === 6 || appDay === 0 || appDay === 1 || appDay === 2) {
-          appWindow = "tue";
-        } else {
-          appWindow = "fri";
-        }
+      const deadline = addCalendarDays(today, 5);
 
-        // Only process apps that match today's window
-        if (appWindow !== targetWindow) continue;
+      const { data: template } = await supabaseAdmin
+        .from("templates")
+        .select("subject, html_body")
+        .eq("key", "video_invite")
+        .single();
 
-        // Mark the window (idempotent)
-        await supabaseAdmin
-          .from("applicants")
-          .update({ video_invite_window: appWindow })
-          .eq("id", app.id);
-
-        // Send video invite email
-        const { data: template } = await supabaseAdmin
-          .from("templates")
-          .select("subject, html_body")
-          .eq("key", "video_invite")
-          .single();
-
-        const subject = template?.subject ?? "Your Next Step – Video Pitch | GrowthConnect Africa";
-        const body =
-          template?.html_body ??
-          `<p>Hi ${app.first_name},</p>
-           <p>Thank you for applying to GrowthConnect Africa!</p>
-           <p>Your application has moved to the next stage. Please submit your video pitch:</p>
-           <p><a href="${process.env.NEXT_PUBLIC_BASE_URL}/video-pitch" style="display:inline-block;background:#2FA36B;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;">Submit Video Pitch</a></p>
-           <p>Best regards,<br/>GrowthConnect Africa Team</p>`;
-
-        const { error: sendError } = await sendEmail({
-          to: app.email,
-          subject,
-          html: body,
-        });
-
-        if (sendError) {
-          results.errors.push(`Email failed for ${app.email}: ${sendError}`);
-        } else {
-          results.videoInvitesSent++;
-          // Mark as queued so we don't send again
-          await supabaseAdmin
-            .from("applicants")
-            .update({
-              email_response_status: "queued",
-              video_invite_window: appWindow,
-            })
-            .eq("id", app.id);
-        }
+      if (!template) {
+        results.errors.push("No 'video_invite' template found in templates table");
+        continue;
       }
+
+      const html = mergeTags(template.html_body, {
+        first_name: applicant.first_name ?? "",
+        deadline: formatDeadline(deadline),
+        video_form_link:
+          "https://growthconnect.africa/founder-assessment-video-pitch-submission/",
+      });
+
+      await sendEmail({ to: applicant.email, subject: template.subject, html });
+
+      await supabaseAdmin
+        .from("applicants")
+        .update({
+          video_invite_sent_at: today.toISOString(),
+          current_stage: "Applications Approved",
+        })
+        .eq("id", applicant.id);
+
+      await supabaseAdmin
+        .from("send_log")
+        .insert({ applicant_id: applicant.id, template_key: "video_invite" });
+
+      results.videoInvitesSent++;
+    } catch (err: any) {
+      results.errors.push(`Applicant ${applicant.email}: ${err.message}`);
     }
   }
 
-  // ── PART B: Verification invites (10-day approved pipeline) ────────────
-  // For every approved video that's been waiting 10+ days and hasn't received
-  // an invite yet, send the verification invite.
-  const tenDaysAgo = addCalendarDays(today, -10).toISOString();
-
-  const { data: approvedVideos, error: approveError } = await supabaseAdmin
+  // ============================================================
+  // PART B — Video approved -> 10 days from the APPROVE click ->
+  // Verification invite, released on the next Tue/Fri window on
+  // or after that 10-day mark. Does NOT pre-create a verifications
+  // row — that row is created solely when the applicant submits the
+  // real /verification form, to avoid duplicate/empty rows.
+  // ============================================================
+  const { data: approvedVideos, error: videoError } = await supabaseAdmin
     .from("video_submissions")
-    .select("id, applicant_id, invite_email_sent_at, applicants(first_name, email)")
+    .select(
+      "id, applicant_id, review_status, approved_at, verification_invite_sent_at, applicants(id, email, first_name)"
+    )
     .eq("review_status", "approved")
-    .is("invite_email_sent_at", null)
-    .lte("approved_at", tenDaysAgo);
+    .is("verification_invite_sent_at", null)
+    .order("approved_at", { ascending: true })
+    .limit(BATCH_SIZE);
 
-  if (approveError) {
-    results.errors.push(`Fetching approved videos: ${approveError.message}`);
-  } else if (approvedVideos?.length) {
-    for (const vid of approvedVideos) {
-      const applicant = (Array.isArray(vid.applicants) ? vid.applicants[0] : vid.applicants) as { first_name: string; email: string } | null;
-      if (!applicant) continue;
+  if (videoError)
+    results.errors.push(`Fetching approved videos: ${videoError.message}`);
+
+  for (const submission of approvedVideos ?? []) {
+    try {
+      const applicant = getApplicant(submission);
+      if (!applicant || !submission.approved_at) continue;
+
+      const holdRelease = addCalendarDays(new Date(submission.approved_at), 10);
+      const window = nextReviewWindow(holdRelease);
+      if (!isOnOrBefore(window, today)) continue;
+
+      const deadline = addCalendarDays(today, 10);
+
+      const { data: batch } = await supabaseAdmin
+        .from("verification_batches")
+        .select("whatsapp_link")
+        .lte("batch_date", today.toISOString().slice(0, 10))
+        .order("batch_date", { ascending: false })
+        .limit(1)
+        .single();
 
       const { data: template } = await supabaseAdmin
         .from("templates")
@@ -134,47 +136,64 @@ export async function GET(req: NextRequest) {
         .eq("key", "verification_invite")
         .single();
 
-      const subject = template?.subject ?? "Congratulations! Next Step – Verification | GrowthConnect Africa";
-      const body =
-        template?.html_body ??
-        `<p>Hi ${applicant.first_name},</p>
-         <p>Congratulations! Your video pitch has been reviewed and approved.</p>
-         <p>You are now moving to the verification stage. Please complete the next steps:</p>
-         <p><a href="${process.env.NEXT_PUBLIC_BASE_URL}/verification" style="display:inline-block;background:#2FA36B;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;">Complete Verification</a></p>
-         <p>Best regards,<br/>GrowthConnect Africa Team</p>`;
+      if (!template) {
+        results.errors.push("No 'verification_invite' template found in templates table");
+        continue;
+      }
 
-      const { error: sendError } = await sendEmail({
-        to: applicant.email,
-        subject,
-        html: body,
+      const html = mergeTags(template.html_body, {
+        first_name: applicant.first_name ?? "",
+        deadline: formatDeadline(deadline),
+        verification_community_link: batch?.whatsapp_link ?? "",
       });
 
-      if (!sendError) {
-        results.verificationEmailsSent++;
-        await supabaseAdmin
-          .from("video_submissions")
-          .update({ invite_email_sent_at: today.toISOString() })
-          .eq("id", vid.id);
-      } else {
-        results.errors.push(`Verification email failed for ${applicant.email}`);
-      }
+      await sendEmail({ to: applicant.email, subject: template.subject, html });
+
+      await supabaseAdmin
+        .from("video_submissions")
+        .update({ verification_invite_sent_at: today.toISOString() })
+        .eq("id", submission.id);
+
+      await supabaseAdmin
+        .from("applicants")
+        .update({ current_stage: "Video Pitch Approved" })
+        .eq("id", applicant.id);
+
+      await supabaseAdmin
+        .from("send_log")
+        .insert({ applicant_id: applicant.id, template_key: "verification_invite" });
+
+      results.verificationInvitesSent++;
+    } catch (err: any) {
+      results.errors.push(`Video submission ${submission.id}: ${err.message}`);
     }
   }
 
-  // ── PART C: Training program emails (10-day rejected pipeline) ──────────
-  const { data: rejectedVideos, error: rejectError } = await supabaseAdmin
+  // ============================================================
+  // PART C — Video rejected -> 10 days from the REJECT click ->
+  // Training program email, same next-Tue/Fri release pattern.
+  // ============================================================
+  const { data: rejectedVideos, error: rejectedError } = await supabaseAdmin
     .from("video_submissions")
-    .select("id, applicant_id, invite_email_sent_at, applicants(first_name, email)")
+    .select(
+      "id, applicant_id, review_status, rejected_at, training_email_sent_at, applicants(id, email, first_name)"
+    )
     .eq("review_status", "rejected")
-    .is("invite_email_sent_at", null)
-    .lte("rejected_at", tenDaysAgo);
+    .is("training_email_sent_at", null)
+    .order("rejected_at", { ascending: true })
+    .limit(BATCH_SIZE);
 
-  if (rejectError) {
-    results.errors.push(`Fetching rejected videos: ${rejectError.message}`);
-  } else if (rejectedVideos?.length) {
-    for (const vid of rejectedVideos) {
-      const applicant = (Array.isArray(vid.applicants) ? vid.applicants[0] : vid.applicants) as { first_name: string; email: string } | null;
-      if (!applicant) continue;
+  if (rejectedError)
+    results.errors.push(`Fetching rejected videos: ${rejectedError.message}`);
+
+  for (const submission of rejectedVideos ?? []) {
+    try {
+      const applicant = getApplicant(submission);
+      if (!applicant || !submission.rejected_at) continue;
+
+      const holdRelease = addCalendarDays(new Date(submission.rejected_at), 10);
+      const window = nextReviewWindow(holdRelease);
+      if (!isOnOrBefore(window, today)) continue;
 
       const { data: template } = await supabaseAdmin
         .from("templates")
@@ -182,37 +201,46 @@ export async function GET(req: NextRequest) {
         .eq("key", "training_rejection")
         .single();
 
-      const subject = template?.subject ?? "An Update from GrowthConnect Africa";
-      const body =
-        template?.html_body ??
-        `<p>Hi ${applicant.first_name},</p>
-         <p>Thank you for your interest in GrowthConnect Africa and for taking the time to apply.</p>
-         <p>After careful consideration, we won't be moving forward with your application at this time. However, we encourage you to explore our free training programs:</p>
-         <p><a href="${process.env.NEXT_PUBLIC_BASE_URL}/programs" style="display:inline-block;background:#2FA36B;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;">View Training Programs</a></p>
-         <p>We wish you the very best in your journey.</p>
-         <p>Warm regards,<br/>GrowthConnect Africa Team</p>`;
+      if (!template) {
+        results.errors.push("No 'training_rejection' template found in templates table");
+        continue;
+      }
 
-      const { error: sendError } = await sendEmail({
-        to: applicant.email,
-        subject,
-        html: body,
+      const html = mergeTags(template.html_body, {
+        first_name: applicant.first_name ?? "",
       });
 
-      if (!sendError) {
-        results.trainingEmailsSent++;
-        await supabaseAdmin
-          .from("video_submissions")
-          .update({ invite_email_sent_at: today.toISOString() })
-          .eq("id", vid.id);
-      } else {
-        results.errors.push(`Training email failed for ${applicant.email}`);
-      }
+      await sendEmail({ to: applicant.email, subject: template.subject, html });
+
+      await supabaseAdmin
+        .from("video_submissions")
+        .update({ training_email_sent_at: today.toISOString() })
+        .eq("id", submission.id);
+
+      await supabaseAdmin
+        .from("applicants")
+        .update({ current_stage: "Video Pitch Rejected" })
+        .eq("id", applicant.id);
+
+      await supabaseAdmin
+        .from("send_log")
+        .insert({ applicant_id: applicant.id, template_key: "training_rejection" });
+
+      results.trainingEmailsSent++;
+    } catch (err: any) {
+      results.errors.push(`Rejected video ${submission.id}: ${err.message}`);
     }
   }
 
-  return NextResponse.json({
-    success: true,
-    message: "Batch complete.",
-    ...results,
-  });
+  if (results.errors.length > 0) {
+    await supabaseAdmin.from("engine_run_log").insert({
+      ran_at: today.toISOString(),
+      video_invites_sent: results.videoInvitesSent,
+      verification_invites_sent: results.verificationInvitesSent,
+      error_count: results.errors.length,
+      errors: results.errors,
+    });
+  }
+
+  return NextResponse.json(results);
 }
