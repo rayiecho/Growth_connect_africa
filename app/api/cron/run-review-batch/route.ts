@@ -73,13 +73,13 @@ export async function GET(req: NextRequest) {
         // Send video invite email
         const { data: template } = await supabaseAdmin
           .from("templates")
-          .select("subject, body")
-          .eq("name", "video_invite")
+          .select("subject, html_body")
+          .eq("key", "video_invite")
           .single();
 
         const subject = template?.subject ?? "Your Next Step – Video Pitch | GrowthConnect Africa";
         const body =
-          template?.body ??
+          template?.html_body ??
           `<p>Hi ${app.first_name},</p>
            <p>Thank you for applying to GrowthConnect Africa!</p>
            <p>Your application has moved to the next stage. Please submit your video pitch:</p>
@@ -130,13 +130,13 @@ export async function GET(req: NextRequest) {
 
       const { data: template } = await supabaseAdmin
         .from("templates")
-        .select("subject, body")
-        .eq("name", "verification_invite")
+        .select("subject, html_body")
+        .eq("key", "verification_invite")
         .single();
 
       const subject = template?.subject ?? "Congratulations! Next Step – Verification | GrowthConnect Africa";
       const body =
-        template?.body ??
+        template?.html_body ??
         `<p>Hi ${applicant.first_name},</p>
          <p>Congratulations! Your video pitch has been reviewed and approved.</p>
          <p>You are now moving to the verification stage. Please complete the next steps:</p>
@@ -178,13 +178,13 @@ export async function GET(req: NextRequest) {
 
       const { data: template } = await supabaseAdmin
         .from("templates")
-        .select("subject, body")
-        .eq("name", "training_rejection")
+        .select("subject, html_body")
+        .eq("key", "training_rejection")
         .single();
 
       const subject = template?.subject ?? "An Update from GrowthConnect Africa";
       const body =
-        template?.body ??
+        template?.html_body ??
         `<p>Hi ${applicant.first_name},</p>
          <p>Thank you for your interest in GrowthConnect Africa and for taking the time to apply.</p>
          <p>After careful consideration, we won't be moving forward with your application at this time. However, we encourage you to explore our free training programs:</p>
