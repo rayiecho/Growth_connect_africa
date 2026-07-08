@@ -1,31 +1,34 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/firebase/auth-server";
+import { supabaseAdmin } from "@/lib/engine/supabaseAdmin";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
 import { VideoSubmission } from "@/components/admin/VideoSubmissionsTable";
 import { Verification } from "@/components/admin/VerificationsTable";
 
 export default async function DashboardPage() {
-  const supabase = createClient();
+  // Auth check: Firebase session cookie + admin custom claim.
+  // requireAdmin() redirects to /admin/login if either is missing.
+  await requireAdmin();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/admin/login");
-
-  const { data: applicants } = await supabase
+  // NOTE: Reads still hit Supabase during the migration window because we
+  // haven't replaced the data layer yet (Phase 4). We use `supabaseAdmin`
+  // (service-role, RLS-bypassing) here because the Firebase session is what
+  // gates access — there's no Supabase auth cookie for the new admin flow.
+  const { data: applicants } = await supabaseAdmin
     .from("applicants")
     .select(
       "id, first_name, last_name, email, phone, current_stage, current_status, date_applied, industry, other_industry, business_name, business_stage, business_description, problem_solved, target_customers, business_registered, generates_revenue, revenue_progress, growth_potential, long_term_vision, use_of_funds, biggest_challenges, attend_lagos_event, why_considered, commitment_confirmed, disclaimers_accepted, state_country, age_range, gender, linkedin, business_social, assigned_reviewer, notes, next_action_required, admin_response, email_response_status, scheduled_send_date, video_invite_window"
     )
     .order("date_applied", { ascending: false });
 
-  // Joined against applicants so the video table can show the person's
-  // name/email without a second round trip.
-  const { data: videoSubmissions } = await supabase
+  const { data: videoSubmissions } = await supabaseAdmin
     .from("video_submissions")
     .select(
       "id, applicant_id, video_link, submitted_at, review_status, feedback, approved_at, rejected_at, invite_email_sent_at, applicants(first_name, last_name, email)"
     )
     .order("submitted_at", { ascending: false });
-    const { data: verifications } = await supabase
+
+  const { data: verifications } = await supabaseAdmin
     .from("verifications")
     .select(
       "id, applicant_id, email, lpx_id, review_status, form_submitted, submitted_at, verification_form_path, payment_receipt_path, applicants(first_name, last_name, email)"
@@ -33,7 +36,7 @@ export default async function DashboardPage() {
     .order("submitted_at", { ascending: false });
 
   const total = applicants?.length ?? 0;
-  const approved = applicants?.filter((a) => a.current_status === "Active").length ?? 0;
+  const active = applicants?.filter((a) => a.current_status === "Active").length ?? 0;
   const rejected = applicants?.filter((a) => a.current_status === "Rejected").length ?? 0;
 
   return (
@@ -50,14 +53,12 @@ export default async function DashboardPage() {
       <div className="max-w-6xl mx-auto px-8 py-10">
         <div className="grid grid-cols-3 gap-4 mb-10">
           <StatCard label="Total Applicants" value={total} />
-          <StatCard label="Active" value={approved} />
+          <StatCard label="Active" value={active} />
           <StatCard label="Rejected" value={rejected} />
         </div>
 
         <span className="brand-eyebrow-line" />
-        <h2 className="text-xl font-bold text-brand-charcoal mb-6">
-          Review Queue
-        </h2>
+        <h2 className="text-xl font-bold text-brand-charcoal mb-6">Review Queue</h2>
         <DashboardTabs
           applicants={applicants ?? []}
           videoSubmissions={(videoSubmissions ?? []) as unknown as VideoSubmission[]}

@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { signInAdmin } from "@/lib/firebase/auth-client";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput } from "@/components/ui/Input";
 
@@ -17,19 +17,14 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-    if (signInError) {
+    try {
+      await signInAdmin(email, password);
+      router.push("/admin/dashboard");
+    } catch {
       setError("Incorrect email or password.");
-      return;
+    } finally {
+      setLoading(false);
     }
-    router.push("/admin/dashboard");
   }
 
   return (
@@ -67,8 +62,12 @@ export default function AdminLoginPage() {
         </Button>
 
         <div className="flex items-center justify-between mt-6 text-sm">
-          <a href="https://growthconnect.africa/" className="text-brand-slate hover:text-brand-green transition-colors">Back to Home</a>
-          <a href="https://lpx.growthconnect.africa/apply" className="text-brand-slate hover:text-brand-green transition-colors">Application Form</a>
+          <a href="https://growthconnect.africa/" className="text-brand-slate hover:text-brand-green transition-colors">
+            Back to Home
+          </a>
+          <a href="https://lpx.growthconnect.africa/apply" className="text-brand-slate hover:text-brand-green transition-colors">
+            Application Form
+          </a>
         </div>
       </form>
     </main>
