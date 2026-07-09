@@ -1,29 +1,31 @@
-require('dotenv').config({ path: '.env.local' });
-const { createClient } = require('@supabase/supabase-js');
+﻿require('dotenv').config({ path: '.env.local' });
+const { initializeApp, cert, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const base64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
 
-console.log('URL set:', !!url);
-console.log('Key set:', !!key);
-
-if (!url || !key) {
-  console.log('RESULT: Missing env vars � stop here, fix .env.local first.');
+if (!base64) {
+  console.log('RESULT: Missing FIREBASE_SERVICE_ACCOUNT_BASE64 in .env.local — stop here.');
   process.exit(1);
 }
 
-const supabase = createClient(url, key);
+const serviceAccount = JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
+
+if (!getApps().length) {
+  initializeApp({
+    credential: cert(serviceAccount)
+  });
+}
+
+const db = getFirestore();
 
 async function check() {
-  const { data, error, count } = await supabase
-    .from('applicants')
-    .select('*', { count: 'exact', head: true });
-
-  if (error) {
-    console.log('RESULT: Could not reach "applicants" table.');
+  try {
+    const snapshot = await db.collection('applicants').limit(1).get();
+    console.log('RESULT: Connected to Firestore safely. Active documents found:', snapshot.size);
+  } catch (error) {
+    console.log('RESULT: Could not reach Firestore collection.');
     console.log('Error:', error.message);
-  } else {
-    console.log('RESULT: Connected successfully. Row count in applicants:', count);
   }
 }
 check();

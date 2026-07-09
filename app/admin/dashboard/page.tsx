@@ -8,30 +8,28 @@ export default async function DashboardPage() {
   const session = await getVerifiedAdminSession();
   if (!session) redirect("/admin/login");
 
+  // Fetch Firestore collection snapshots simultaneously
   const [applicantsSnap, videoSnap, verificationsSnap] = await Promise.all([
-    adminDb.ref("applicants").once("value"),
-    adminDb.ref("video_submissions").once("value"),
-    adminDb.ref("verifications").once("value"),
+    adminDb.collection("applicants").get(),
+    adminDb.collection("video_submissions").get(),
+    adminDb.collection("verifications").get(),
   ]);
 
-  const applicantsObj = applicantsSnap.val() ?? {};
-  const videoObj = videoSnap.val() ?? {};
-  const verificationsObj = verificationsSnap.val() ?? {};
+  // Map Firestore document data array structures
+  const applicants: Applicant[] = applicantsSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  }) as Applicant).sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
 
-  const applicants: Applicant[] = Object.entries(applicantsObj).map(([id, v]: [string, any]) => ({
-    id,
-    ...v,
-  })).sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
+  const videoSubmissions: VideoSubmission[] = videoSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  } as VideoSubmission)).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
 
-  const videoSubmissions: VideoSubmission[] = Object.entries(videoObj).map(([id, v]: [string, any]) => ({
-    id,
-    ...v,
-  })).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
-
-  const verifications: Verification[] = Object.entries(verificationsObj).map(([id, v]: [string, any]) => ({
-    id,
-    ...v,
-  })).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
+  const verifications: Verification[] = verificationsSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  } as Verification)).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
 
   const total = applicants.length;
   const active = applicants.filter((a) => a.current_status === "Active").length;

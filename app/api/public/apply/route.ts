@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email is required." }, { status: 400 });
     }
 
-    const newRef = adminDb.ref("applicants").push();
-    await newRef.set({
+    // Switched to Firestore collection .add() reference
+    const docRef = await adminDb.collection("applicants").add({
       ...body,
       email,
       date_applied: new Date().toISOString(),
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       video_invite_sent_at: null,
     });
 
-    return NextResponse.json({ success: true, id: newRef.key });
+    return NextResponse.json({ success: true, id: docRef.id });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: "Something went wrong submitting your application." }, { status: 500 });

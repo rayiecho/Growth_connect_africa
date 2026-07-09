@@ -1,5 +1,5 @@
 ﻿import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getDatabase } from "firebase-admin/database";
+import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 
@@ -15,11 +15,10 @@ function getAdminApp(): App {
 
   return initializeApp({
     credential: cert(serviceAccount),
-    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 }
 
-export const adminDb = getDatabase(getAdminApp());
+export const adminDb = getFirestore(getAdminApp());
 export const adminAuth = getAuth(getAdminApp());
 export const adminStorage = getStorage(getAdminApp());

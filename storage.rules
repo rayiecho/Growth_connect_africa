@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /verification-uploads/{allPaths=**} {
+      // Applicants uploading their verification PDF/receipt are NOT
+      // logged-in Firebase users — they're anonymous visitors on a public
+      // form — so write can't require request.auth. Instead it's
+      // restricted by size (15MB) and content type (PDF or image only),
+      // which stops it being a wide-open dumping ground for arbitrary files.
+      allow write: if request.resource.size < 15 * 1024 * 1024
+                   && (request.resource.contentType.matches('application/pdf')
+                       || request.resource.contentType.matches('image/.*'));
+
+      // Only admins (custom claim admin: true, set via the bootstrap
+      // script) can read these — this is where BVN/NIN-adjacent documents
+      // live, so read access stays tightly restricted.
+      allow read: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Deny everything else by default — no other paths in this bucket
+    // are used by the app, so nothing else should be reachable.
+    match /{allOtherPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

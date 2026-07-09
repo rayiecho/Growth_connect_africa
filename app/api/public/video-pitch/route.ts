@@ -6,19 +6,22 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const email = (body.email || "").trim().toLowerCase();
 
-    const snap = await adminDb.ref("applicants").orderByChild("email").equalTo(email).once("value");
-    const val = snap.val();
-    if (!val) {
+    // Query Firestore collection for matching email
+    const snapshot = await adminDb.collection("applicants").where("email", "==", email).limit(1).get();
+    
+    if (snapshot.empty) {
       return NextResponse.json(
         { error: "We couldn't find an application matching this email. Please use the same email you applied with." },
         { status: 404 }
       );
     }
-    const applicantId = Object.keys(val)[0];
-    const applicant = val[applicantId];
+    
+    const applicantDoc = snapshot.docs[0];
+    const applicantId = applicantDoc.id;
+    const applicant = applicantDoc.data();
 
-    const newRef = adminDb.ref("video_submissions").push();
-    await newRef.set({
+    // Add document to firestore video_submissions collection
+    const docRef = await adminDb.collection("video_submissions").add({
       applicant_id: applicantId,
       applicant_first_name: applicant.first_name ?? "",
       applicant_last_name: applicant.last_name ?? "",
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
       review_status: "pending",
     });
 
-    return NextResponse.json({ success: true, id: newRef.key });
+    return NextResponse.json({ success: true, id: docRef.id });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: "Something went wrong submitting your video." }, { status: 500 });
