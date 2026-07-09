@@ -3,16 +3,33 @@
     ".read": false,
     ".write": false,
     "applicants": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true",
       ".indexOn": ["email", "current_stage", "video_invite_window"]
     },
     "video_submissions": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true",
       ".indexOn": ["applicant_id", "review_status"]
     },
     "verifications": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true",
       ".indexOn": ["applicant_id", "email", "review_status"]
     },
     "templates": {
       ".read": true
+    },
+    "verification_batches": {
+      ".read": "auth != null && auth.token.admin === true"
+    },
+    "send_log": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true"
+    },
+    "engine_run_log": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": "auth != null && auth.token.admin === true"
     }
   }
 }

@@ -1,40 +1,41 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+﻿import { redirect } from "next/navigation";
+import { getVerifiedAdminSession } from "@/lib/firebase/session";
+import { adminDb } from "@/lib/firebase/admin";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
-import { VideoSubmission } from "@/components/admin/VideoSubmissionsTable";
-import { Verification } from "@/components/admin/VerificationsTable";
+import type { Applicant, VideoSubmission, Verification } from "@/lib/firebase/types";
 
 export default async function DashboardPage() {
-  const supabase = createClient();
+  const session = await getVerifiedAdminSession();
+  if (!session) redirect("/admin/login");
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/admin/login");
+  const [applicantsSnap, videoSnap, verificationsSnap] = await Promise.all([
+    adminDb.ref("applicants").once("value"),
+    adminDb.ref("video_submissions").once("value"),
+    adminDb.ref("verifications").once("value"),
+  ]);
 
-  const { data: applicants } = await supabase
-    .from("applicants")
-    .select(
-      "id, first_name, last_name, email, phone, current_stage, current_status, date_applied, industry, other_industry, business_name, business_stage, business_description, problem_solved, target_customers, business_registered, generates_revenue, revenue_progress, growth_potential, long_term_vision, use_of_funds, biggest_challenges, attend_lagos_event, why_considered, commitment_confirmed, disclaimers_accepted, state_country, age_range, gender, linkedin, business_social, assigned_reviewer, notes, next_action_required, admin_response, email_response_status, scheduled_send_date, video_invite_window"
-    )
-    .order("date_applied", { ascending: false });
+  const applicantsObj = applicantsSnap.val() ?? {};
+  const videoObj = videoSnap.val() ?? {};
+  const verificationsObj = verificationsSnap.val() ?? {};
 
-  // Joined against applicants so the video table can show the person's
-  // name/email without a second round trip.
-  const { data: videoSubmissions } = await supabase
-    .from("video_submissions")
-    .select(
-      "id, applicant_id, video_link, submitted_at, review_status, feedback, approved_at, rejected_at, invite_email_sent_at, applicants(first_name, last_name, email)"
-    )
-    .order("submitted_at", { ascending: false });
-    const { data: verifications } = await supabase
-    .from("verifications")
-    .select(
-      "id, applicant_id, email, lpx_id, review_status, form_submitted, submitted_at, verification_form_path, payment_receipt_path, applicants(first_name, last_name, email)"
-    )
-    .order("submitted_at", { ascending: false });
+  const applicants: Applicant[] = Object.entries(applicantsObj).map(([id, v]: [string, any]) => ({
+    id,
+    ...v,
+  })).sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
 
-  const total = applicants?.length ?? 0;
-  const approved = applicants?.filter((a) => a.current_status === "Active").length ?? 0;
-  const rejected = applicants?.filter((a) => a.current_status === "Rejected").length ?? 0;
+  const videoSubmissions: VideoSubmission[] = Object.entries(videoObj).map(([id, v]: [string, any]) => ({
+    id,
+    ...v,
+  })).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
+
+  const verifications: Verification[] = Object.entries(verificationsObj).map(([id, v]: [string, any]) => ({
+    id,
+    ...v,
+  })).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
+
+  const total = applicants.length;
+  const active = applicants.filter((a) => a.current_status === "Active").length;
+  const rejected = applicants.filter((a) => a.current_status === "Rejected").length;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -50,7 +51,7 @@ export default async function DashboardPage() {
       <div className="max-w-6xl mx-auto px-8 py-10">
         <div className="grid grid-cols-3 gap-4 mb-10">
           <StatCard label="Total Applicants" value={total} />
-          <StatCard label="Active" value={approved} />
+          <StatCard label="Active" value={active} />
           <StatCard label="Rejected" value={rejected} />
         </div>
 
@@ -59,10 +60,9 @@ export default async function DashboardPage() {
           Review Queue
         </h2>
         <DashboardTabs
-          applicants={applicants ?? []}
-          videoSubmissions={(videoSubmissions ?? []) as unknown as VideoSubmission[]}
-          verifications={(verifications ?? []) as unknown as Verification[]}
-          cronSecret={process.env.CRON_SECRET ?? ""}
+          applicants={applicants}
+          videoSubmissions={videoSubmissions}
+          verifications={verifications}
         />
       </div>
     </main>

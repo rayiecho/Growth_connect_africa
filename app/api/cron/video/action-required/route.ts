@@ -1,74 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/engine/supabaseAdmin";
-import { sendEmail } from "@/lib/engine/ses";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { getVerifiedAdminSession } from "@/lib/firebase/session";
+import { adminDb } from "@/lib/firebase/admin";
+import { sendEmail, mergeTags } from "@/lib/engine/ses";
 
-// POST /api/cron/video/action-required?secret=...
-// Fires INSTANTLY when reviewer clicks "Send Feedback" on the dashboard.
-// Sends action-required email right now (no wait).
+// POST /api/cron/video/action-required
+// Protected by admin session cookie — NOT a public secret, since this is
+// triggered by a logged-in reviewer clicking a button, not an automated
+// scheduler. CRON_SECRET stays reserved for the actual scheduled routes.
 export async function POST(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
+  const session = await getVerifiedAdminSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { submissionId, feedback } = await req.json();
-
   if (!submissionId || !feedback?.trim()) {
-    return NextResponse.json(
-      { error: "submissionId and feedback are required." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "submissionId and feedback are required." }, { status: 400 });
   }
 
-  // Fetch applicant + submission
-  const { data: sub, error: subError } = await supabaseAdmin
-    .from("video_submissions")
-    .select("id, applicants(first_name, email)")
-    .eq("id", submissionId)
-    .single();
-
-  if (subError || !sub) {
+  const subSnap = await adminDb.ref(`video_submissions/${submissionId}`).once("value");
+  const submission = subSnap.val();
+  if (!submission) {
     return NextResponse.json({ error: "Submission not found." }, { status: 404 });
   }
 
-  const applicant = (Array.isArray(sub.applicants) ? sub.applicants[0] : sub.applicants) as { first_name: string; email: string } | null;
-  if (!applicant) {
-    return NextResponse.json({ error: "Applicant not found." }, { status: 404 });
-  }
-
-  const { data: template } = await supabaseAdmin
-    .from("templates")
-    .select("subject, html_body")
-    .eq("key", "action_required")
-    .single();
+  const templateSnap = await adminDb.ref("templates/action_required").once("value");
+  const template = templateSnap.val();
 
   const subject = template?.subject ?? "Action Required – GrowthConnect Africa";
-  const body =
-    template?.html_body ??
-    `<p>Hi ${applicant.first_name},</p>
-     <p>We reviewed your video submission and need additional information:</p>
-     <p><strong>${feedback}</strong></p>
-     <p>Please resubmit your video or provide the requested information as soon as possible.</p>
-     <p>Best regards,<br/>GrowthConnect Africa Team</p>`;
+  const html = template?.html_body
+    ? mergeTags(template.html_body, {
+        first_name: submission.applicant_first_name ?? "",
+        feedback: feedback.trim(),
+      })
+    : `<p>Hi ${submission.applicant_first_name},</p><p>${feedback.trim()}</p>`;
 
   const { error: sendError } = await sendEmail({
-    to: applicant.email,
+    to: submission.applicant_email,
     subject,
-    html: body,
+    html,
   });
 
   if (sendError) {
     return NextResponse.json({ error: "Failed to send email." }, { status: 500 });
   }
 
-  // Update submission with feedback (no timestamp change — not queued)
-  await supabaseAdmin
-    .from("video_submissions")
-    .update({ feedback: feedback.trim(), review_status: "action_required" })
-    .eq("id", submissionId);
-
-  return NextResponse.json({
-    success: true,
-    message: "Action-required email sent instantly.",
-  });
+  return NextResponse.json({ success: true, message: "Action-required email sent instantly." });
 }

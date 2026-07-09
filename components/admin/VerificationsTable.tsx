@@ -1,60 +1,61 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { ref, update } from "firebase/database";
+import { getDownloadURL, ref as storageRef } from "firebase/storage";
+import { clientDb, clientStorage } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Input";
-
-export type Verification = {
-  id: string;
-  applicant_id: string;
-  email: string;
-  lpx_id: string | null;
-  review_status: string;
-  form_submitted: boolean;
-  submitted_at: string | null;
-  verification_form_path: string | null;
-  payment_receipt_path: string | null;
-  applicants: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  } | null;
-};
+import type { Verification } from "@/lib/firebase/types";
 
 export function VerificationsTable({ initialData }: { initialData: Verification[] }) {
   const [items, setItems] = useState(initialData);
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const filtered = items.filter((v) => {
-    const name = v.applicants ? `${v.applicants.first_name} ${v.applicants.last_name} ${v.email}` : v.email;
-    return name.toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = items.filter((v) =>
+    `${v.applicant_first_name} ${v.applicant_last_name} ${v.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   async function updateStatus(id: string, status: "Approved" | "Rejected") {
     setUpdatingId(id);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("verifications")
-      .update({ review_status: status, review_completed_at: new Date().toISOString() })
-      .eq("id", id);
+    try {
+      const updates: Record<string, any> = {
+        review_status: status,
+        review_completed_at: new Date().toISOString(),
+      };
 
-    setUpdatingId(null);
-    if (!error) {
+      await update(ref(clientDb, `verifications/${id}`), updates);
+
+      // On Approval, advance the applicant to Program Participant — this
+      // was a real gap in the old Supabase version (nothing did this).
+      if (status === "Approved") {
+        const item = items.find((v) => v.id === id);
+        if (item) {
+          await update(ref(clientDb, `applicants/${item.applicant_id}`), {
+            current_stage: "Program Participant",
+            current_status: "Active",
+            verified_at: new Date().toISOString(),
+          });
+        }
+      }
+
       setItems((prev) => prev.map((v) => (v.id === id ? { ...v, review_status: status } : v)));
+    } catch (err) {
+      console.error(err);
     }
+    setUpdatingId(null);
   }
 
   async function viewFile(path: string | null) {
     if (!path) return;
-    const supabase = createClient();
-    const { data, error } = await supabase.storage
-      .from("verification-uploads")
-      .createSignedUrl(path, 60);
-
-    if (!error && data?.signedUrl) {
-      window.open(data.signedUrl, "_blank");
+    try {
+      const url = await getDownloadURL(storageRef(clientStorage, path));
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Failed to get file URL:", err);
     }
   }
 
@@ -84,25 +85,15 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
           <tbody>
             {filtered.map((v) => (
               <tr key={v.id} className="border-t border-brand-line">
-                <td className="px-4 py-3">
-                  {v.applicants ? `${v.applicants.first_name} ${v.applicants.last_name}` : "—"}
-                </td>
+                <td className="px-4 py-3">{v.applicant_first_name} {v.applicant_last_name}</td>
                 <td className="px-4 py-3 text-brand-slate">{v.email}</td>
                 <td className="px-4 py-3">{v.lpx_id || "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => viewFile(v.verification_form_path)}
-                      className="text-brand-green font-medium hover:underline text-left"
-                    >
+                    <button type="button" onClick={() => viewFile(v.verification_form_path)} className="text-brand-green font-medium hover:underline text-left">
                       Verification Form
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => viewFile(v.payment_receipt_path)}
-                      className="text-brand-green font-medium hover:underline text-left"
-                    >
+                    <button type="button" onClick={() => viewFile(v.payment_receipt_path)} className="text-brand-green font-medium hover:underline text-left">
                       Payment Receipt
                     </button>
                   </div>
@@ -125,20 +116,10 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <Button
-                      variant="primary"
-                      className="!px-4 !py-2 text-xs"
-                      disabled={updatingId === v.id}
-                      onClick={() => updateStatus(v.id, "Approved")}
-                    >
+                    <Button variant="primary" className="!px-4 !py-2 text-xs" disabled={updatingId === v.id} onClick={() => updateStatus(v.id, "Approved")}>
                       Approve
                     </Button>
-                    <Button
-                      variant="secondary"
-                      className="!px-4 !py-2 text-xs"
-                      disabled={updatingId === v.id}
-                      onClick={() => updateStatus(v.id, "Rejected")}
-                    >
+                    <Button variant="secondary" className="!px-4 !py-2 text-xs" disabled={updatingId === v.id} onClick={() => updateStatus(v.id, "Rejected")}>
                       Reject
                     </Button>
                   </div>
