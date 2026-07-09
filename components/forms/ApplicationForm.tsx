@@ -1,7 +1,6 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput, Select, CheckboxField } from "@/components/ui/Input";
 import { Tabs } from "@/components/ui/Tabs";
@@ -167,44 +166,41 @@ export function ApplicationForm() {
 
     setSubmitting(true);
     setError(null);
-
-    const supabase = createClient();
-    const { error: insertError } = await supabase.from("applicants").insert({
-      first_name: form.firstName,
-      last_name: form.lastName,
-      phone: form.phone,
-      email: form.email.trim().toLowerCase(),
-      age_range: form.ageRange,
-      gender: form.gender,
-      state_country: form.stateCountry,
-      linkedin: form.linkedin || null,
-      business_social: form.businessSocial || null,
-      business_name: form.businessName,
-      business_stage: form.businessStage,
-      industry: form.industry,
-      other_industry: form.otherIndustry || null,
-      business_description: form.businessDescription,
-      problem_solved: form.problemSolved,
-      target_customers: form.targetCustomers,
-      business_registered: form.businessRegistered,
-      generates_revenue: form.generatesRevenue,
-      revenue_progress: form.revenueProgress || null,
-      growth_potential: form.growthPotential,
-      long_term_vision: form.longTermVision,
-      use_of_funds: form.useOfFunds,
-      biggest_challenges: form.biggestChallenges.join(", "),
-      attend_lagos_event: form.attendLagosEvent,
-      why_considered: form.whyConsidered,
-      commitment_confirmed: true,
-      disclaimers_accepted: true,
-      date_applied: new Date().toISOString(),
-      current_stage: "Application Submitted",
-      current_status: "Active",
+    const res = await fetch("/api/public/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: form.firstName,
+        last_name: form.lastName,
+        phone: form.phone,
+        email: form.email.trim().toLowerCase(),
+        age_range: form.ageRange,
+        gender: form.gender,
+        state_country: form.stateCountry,
+        linkedin: form.linkedin || null,
+        business_social: form.businessSocial || null,
+        business_name: form.businessName,
+        business_stage: form.businessStage,
+        industry: form.industry,
+        other_industry: form.otherIndustry || null,
+        business_description: form.businessDescription,
+        problem_solved: form.problemSolved,
+        target_customers: form.targetCustomers,
+        business_registered: form.businessRegistered,
+        generates_revenue: form.generatesRevenue,
+        revenue_progress: form.revenueProgress || null,
+        growth_potential: form.growthPotential,
+        long_term_vision: form.longTermVision,
+        use_of_funds: form.useOfFunds,
+        biggest_challenges: form.biggestChallenges.join(", "),
+        attend_lagos_event: form.attendLagosEvent,
+        why_considered: form.whyConsidered,
+        commitment_confirmed: true,
+        disclaimers_accepted: true,
+      }),
     });
-
     setSubmitting(false);
-
-    if (insertError) {
+    if (!res.ok) {
       setError("Something went wrong submitting your application. Please try again.");
       return;
     }
@@ -220,7 +216,7 @@ export function ApplicationForm() {
         </h2>
         <p className="text-brand-slate">
           Your application has been received. Our review team assesses
-          applications every Tuesday and Friday — we&apos;ll be in touch by
+          applications every Tuesday and Friday â€” we&apos;ll be in touch by
           email if you&apos;re selected for the next stage.
         </p>
       </div>
@@ -246,7 +242,7 @@ export function ApplicationForm() {
             <li>Your WhatsApp number is correct</li>
           </ul>
           <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
-            <span aria-hidden="true">⚠️</span>
+            <span aria-hidden="true">âš ï¸</span>
             <p className="text-sm text-brand-slate">
               <strong className="text-brand-charcoal">Important:</strong>{" "}
               Most communication and updates regarding the program will
@@ -270,9 +266,9 @@ export function ApplicationForm() {
             <Select required value={form.ageRange} onChange={(e) => update("ageRange", e.target.value)}>
               <option value="">Select</option>
               <option>Under 18</option>
-              <option>18–24</option>
-              <option>25–34</option>
-              <option>35–44</option>
+              <option>18â€“24</option>
+              <option>25â€“34</option>
+              <option>35â€“44</option>
               <option>45+</option>
             </Select>
           </Field>
@@ -301,7 +297,7 @@ export function ApplicationForm() {
             Tell Us About Your Business or Idea
           </h3>
           <p className="text-brand-slate mb-6">
-            LaunchPadX is designed for entrepreneurs at different stages —
+            LaunchPadX is designed for entrepreneurs at different stages â€”
             early-stage ideas, existing businesses, growing ventures, and
             scalable startups. You do not need to have everything figured out
             yet. What matters most is clarity, potential, willingness to
@@ -415,10 +411,10 @@ export function ApplicationForm() {
             LaunchPadX pipeline. Participants who complete the qualification
             process may be shortlisted to pitch their business, present their
             vision, and compete for support and funding opportunities.
-            Selected businesses may receive ₦1,000,000 in support (₦500,000
-            cash support + ₦500,000 business growth packages). Businesses
+            Selected businesses may receive â‚¦1,000,000 in support (â‚¦500,000
+            cash support + â‚¦500,000 business growth packages). Businesses
             that demonstrate strong performance and accountability may later
-            qualify for up to ₦20 million in credit financing and potential
+            qualify for up to â‚¦20 million in credit financing and potential
             equity funding opportunities of up to $50,000. This stage is
             highly competitive, and progression is based on evaluation and
             qualification performance.
@@ -555,3 +551,4 @@ export function ApplicationForm() {
     </form>
   );
 }
+
