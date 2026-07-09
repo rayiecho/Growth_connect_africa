@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput, CheckboxField } from "@/components/ui/Input";
 
@@ -12,7 +11,7 @@ export function VideoPitchForm() {
   const [phone, setPhone] = useState("");
   const [videoLink, setVideoLink] = useState("");
   const [confirmRecorded, setConfirmRecorded] = useState(false);
-const [confirmAccessible, setConfirmAccessible] = useState(false);
+  const [confirmAccessible, setConfirmAccessible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,37 +25,32 @@ const [confirmAccessible, setConfirmAccessible] = useState(false);
     setSubmitting(true);
     setError(null);
 
-    const supabase = createClient();
-    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
 
-    // Look up the applicant by email — this form assumes they already applied.
-    const { data: applicant, error: lookupError } = await supabase
-      .from("applicants")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .single();
+      const res = await fetch("/api/public/video-pitch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          video_link: videoLink,
+        }),
+      });
 
-    if (lookupError || !applicant) {
-      setSubmitting(false);
-      setError(
-        "We couldn't find an application matching this email. Please use the same email you applied with."
-      );
-      return;
-    }
+      const data = await res.json();
 
-    const { error: insertError } = await supabase.from("video_submissions").insert({
-      applicant_id: applicant.id,
-      video_link: videoLink,
-      submitted_at: new Date().toISOString(),
-      review_status: "pending",
-    });
+      if (!res.ok) {
+        setError(data.error || "Something went wrong submitting your video. Please try again.");
+        setSubmitting(false);
+        return;
+      }
 
-    setSubmitting(false);
-    if (insertError) {
+      setSubmitted(true);
+    } catch (err) {
       setError("Something went wrong submitting your video. Please try again.");
-      return;
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitted(true);
   }
 
   if (submitted) {

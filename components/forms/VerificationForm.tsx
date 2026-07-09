@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { clientStorage } from "@/lib/firebase/client";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput, CheckboxField } from "@/components/ui/Input";
 
@@ -31,61 +32,49 @@ export function VerificationForm() {
     setSubmitting(true);
     setError(null);
 
-    const supabase = createClient();
-    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const folder = `${normalizedEmail}-${Date.now()}`;
 
-    const { data: applicant, error: lookupError } = await supabase
-      .from("applicants")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .maybeSingle();
-
-    if (lookupError || !applicant) {
-      setSubmitting(false);
-      setError(
-        "We couldn't find an application matching that email. Please check it matches your original application, or contact support."
+      const verificationRef = ref(
+        clientStorage,
+        `verification-uploads/${folder}/verification-form-${verificationFile.name}`
       );
-      return;
-    }
+      await uploadBytes(verificationRef, verificationFile);
+      const verification_form_path = await getDownloadURL(verificationRef);
 
-    // Upload both files to Storage, under a folder named for this applicant.
-    const folder = applicant.id;
-    const verificationPath = `${folder}/verification-form-${Date.now()}-${verificationFile.name}`;
-    const receiptPath = `${folder}/payment-receipt-${Date.now()}-${receiptFile.name}`;
+      const receiptRef = ref(
+        clientStorage,
+        `verification-uploads/${folder}/payment-receipt-${receiptFile.name}`
+      );
+      await uploadBytes(receiptRef, receiptFile);
+      const payment_receipt_path = await getDownloadURL(receiptRef);
 
-    const { error: uploadError1 } = await supabase.storage
-      .from("verification-uploads")
-      .upload(verificationPath, verificationFile);
+      const res = await fetch("/api/public/verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          lpx_id: lpxId.trim() || null,
+          verification_form_path,
+          payment_receipt_path,
+        }),
+      });
 
-    const { error: uploadError2 } = await supabase.storage
-      .from("verification-uploads")
-      .upload(receiptPath, receiptFile);
+      const data = await res.json();
 
-    if (uploadError1 || uploadError2) {
-      setSubmitting(false);
+      if (!res.ok) {
+        setError(data.error || "Something went wrong submitting your verification. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      setSubmitted(true);
+    } catch (err) {
       setError("Something went wrong uploading your files. Please try again.");
-      return;
+    } finally {
+      setSubmitting(false);
     }
-
-    const { error: insertError } = await supabase.from("verifications").insert({
-      applicant_id: applicant.id,
-      email: normalizedEmail,
-      lpx_id: lpxId.trim() || null,
-      form_submitted: true,
-      submitted_at: new Date().toISOString(),
-      review_status: "Pending",
-      verification_form_path: verificationPath,
-      payment_receipt_path: receiptPath,
-    });
-
-    setSubmitting(false);
-
-    if (insertError) {
-      setError("Something went wrong submitting your verification. Please try again.");
-      return;
-    }
-
-    setSubmitted(true);
   }
 
   if (submitted) {
@@ -169,7 +158,7 @@ export function VerificationForm() {
 
       {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
 
-      <Button type="submit" disabled={submitting}>
+      <Button type="submit" variant="formSubmit" disabled={submitting}>
         {submitting ? "Submitting..." : "Submit"}
       </Button>
     </form>
