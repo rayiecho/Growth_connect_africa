@@ -1,4 +1,4 @@
-﻿export type Applicant = {
+export type Applicant = {
   id: string;
   first_name: string;
   last_name: string;
@@ -39,6 +39,8 @@
   video_invite_window: string | null;
   video_invite_sent_at: string | null;
   last_updated: string | null;
+  lpx_id?: string | null;
+  preferred_name?: string | null;
 };
 
 export type VideoSubmission = {
@@ -52,7 +54,6 @@ export type VideoSubmission = {
   feedback: string | null;
   verification_invite_sent_at: string | null;
   training_email_sent_at: string | null;
-  // Denormalized (RTDB has no joins) — copied from applicants at write time.
   applicant_first_name: string;
   applicant_last_name: string;
   applicant_email: string;

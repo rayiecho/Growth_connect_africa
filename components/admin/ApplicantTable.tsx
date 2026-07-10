@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const filtered = applicants.filter((a) =>
-    `${a.first_name} ${a.last_name} ${a.email}`.toLowerCase().includes(search.toLowerCase())
+    `${a.first_name} ${a.last_name} ${a.email} ${a.lpx_id || ""}`.toLowerCase().includes(search.toLowerCase())
   );
 
   async function updateAdminFields(
@@ -56,7 +56,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
     <div>
       <div className="mb-4 max-w-sm">
         <TextInput
-          placeholder="Search by name or email"
+          placeholder="Search by name, email, or LPX ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -71,6 +71,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
           <thead className="bg-gray-50 text-brand-charcoal">
             <tr>
               <th className="px-4 py-3 font-semibold">Name</th>
+              <th className="px-4 py-3 font-semibold">LaunchPadX ID</th>
               <th className="px-4 py-3 font-semibold">Email</th>
               <th className="px-4 py-3 font-semibold">Stage</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -81,76 +82,86 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
             {filtered.map((a) => {
               const isExpanded = expandedId === a.id;
               return (
-                <>
-                  <tr key={a.id} className="border-t border-brand-line">
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(isExpanded ? null : a.id)}
-                        className="text-brand-charcoal font-medium hover:text-brand-green text-left"
-                      >
-                        {isExpanded ? "v " : "> "}
-                        {a.first_name} {a.last_name}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-brand-slate">{a.email}</td>
-                    <td className="px-4 py-3">{a.current_stage}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-pill px-3 py-1 text-xs font-medium ${
-                          a.current_status === "Active"
-                            ? "bg-brand-green/10 text-brand-green-dark"
-                            : a.current_status === "Rejected"
-                            ? "bg-red-50 text-red-600"
-                            : "bg-gray-100 text-brand-slate"
-                        }`}
-                      >
-                        {a.current_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-brand-slate">
-                      {a.date_applied ? new Date(a.date_applied).toLocaleDateString() : "-"}
-                    </td>
-                  </tr>
+                <tr key={a.id} className="border-t border-brand-line p-0">
+                  <td colSpan={6} className="p-0">
+                    <table className="w-full text-sm text-left table-fixed">
+                      <tbody>
+                        <tr>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(isExpanded ? null : a.id)}
+                              className="text-brand-charcoal font-medium hover:text-brand-green text-left"
+                            >
+                              {isExpanded ? "v " : "> "}
+                              {a.first_name} {a.last_name}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-mono font-semibold text-brand-green">
+                            {a.lpx_id || <span className="text-gray-300 italic text-xs">Not Generated</span>}
+                          </td>
+                          <td className="px-4 py-3 text-brand-slate">{a.email}</td>
+                          <td className="px-4 py-3">{a.current_stage}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-block rounded-pill px-3 py-1 text-xs font-medium ${
+                                a.current_status === "Active"
+                                  ? "bg-brand-green/10 text-brand-green-dark"
+                                  : a.current_status === "Rejected"
+                                  ? "bg-red-50 text-red-600"
+                                  : "bg-gray-100 text-brand-slate"
+                              }`}
+                            >
+                              {a.current_status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-brand-slate">
+                            {a.date_applied ? new Date(a.date_applied).toLocaleDateString() : "-"}
+                          </td>
+                        </tr>
 
-                  {isExpanded && (
-                    <tr key={`${a.id}-details`} className="border-t border-brand-line bg-gray-50">
-                      <td colSpan={5} className="px-6 py-5">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 mb-5 text-sm">
-                          <Detail label="Phone" value={a.phone} />
-                          <Detail label="Industry" value={a.industry} />
-                          <Detail label="State/Country" value={a.state_country} />
-                          <Detail label="Age Range" value={a.age_range} />
-                          <Detail label="Gender" value={a.gender} />
-                          <Detail label="Business Name" value={a.business_name} />
-                          <Detail label="Business Stage" value={a.business_stage} />
-                          <Detail label="Target Customers" value={a.target_customers} />
-                          <Detail label="Business Registered" value={a.business_registered} />
-                          <Detail label="Generates Revenue" value={a.generates_revenue} />
-                          <Detail label="Attend Lagos Event" value={a.attend_lagos_event} />
-                        </div>
+                        {isExpanded && (
+                          <tr className="border-t border-brand-line bg-gray-50">
+                            <td colSpan={6} className="px-6 py-5">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 mb-5 text-sm">
+                                <Detail label="Phone" value={a.phone} />
+                                <Detail label="Preferred Name on Card" value={a.preferred_name || null} />
+                                <Detail label="Industry" value={a.industry} />
+                                <Detail label="State/Country" value={a.state_country} />
+                                <Detail label="Age Range" value={a.age_range} />
+                                <Detail label="Gender" value={a.gender} />
+                                <Detail label="Business Name" value={a.business_name} />
+                                <Detail label="Business Stage" value={a.business_stage} />
+                                <Detail label="Target Customers" value={a.target_customers} />
+                                <Detail label="Business Registered" value={a.business_registered} />
+                                <Detail label="Generates Revenue" value={a.generates_revenue} />
+                                <Detail label="Attend Lagos Event" value={a.attend_lagos_event} />
+                              </div>
 
-                        <LongField label="Business Description" value={a.business_description} />
-                        <LongField label="Problem Solved" value={a.problem_solved} />
-                        <LongField label="Growth Potential" value={a.growth_potential} />
-                        <LongField label="Long-Term Vision" value={a.long_term_vision} />
-                        <LongField label="Use of Funds" value={a.use_of_funds} />
-                        <LongField label="Why Considered" value={a.why_considered} />
+                              <LongField label="Business Description" value={a.business_description} />
+                              <LongField label="Problem Solved" value={a.problem_solved} />
+                              <LongField label="Growth Potential" value={a.growth_potential} />
+                              <LongField label="Long-Term Vision" value={a.long_term_vision} />
+                              <LongField label="Use of Funds" value={a.use_of_funds} />
+                              <LongField label="Why Considered" value={a.why_considered} />
 
-                        <AdminFieldsEditor
-                          applicant={a}
-                          saving={savingId === a.id}
-                          onSave={(fields) => updateAdminFields(a.id, fields)}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </>
+                              <AdminFieldsEditor
+                                applicant={a}
+                                saving={savingId === a.id}
+                                onSave={(fields) => updateAdminFields(a.id, fields)}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
               );
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-brand-slate">
+                <td colSpan={6} className="px-4 py-8 text-center text-brand-slate">
                   No applicants match your search.
                 </td>
               </tr>
