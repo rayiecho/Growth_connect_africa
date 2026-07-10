@@ -1,5 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { firestoreQuery, firestoreUpdate, firestoreAdd } from "@/lib/firebase/rest-admin";
 import { sendEmail } from "@/lib/engine/ses";
 
 export async function GET(req: NextRequest) {
@@ -20,17 +20,16 @@ export async function GET(req: NextRequest) {
     scheduledDate: todayStr,
   };
 
-  const queuedSnap = await adminDb
-    .collection("applicants")
-    .where("email_response_status", "==", "queued")
-    .where("scheduled_send_date", "==", todayStr)
-    .get();
+  const queuedDocs = await firestoreQuery("applicants", [
+    { field: "email_response_status", op: "EQUAL", value: "queued" },
+    { field: "scheduled_send_date", op: "EQUAL", value: todayStr },
+  ]);
 
-  if (queuedSnap.empty) {
+  if (queuedDocs.length === 0) {
     return NextResponse.json({ ...results, message: "No responses due today." });
   }
 
-  for (const doc of queuedSnap.docs) {
+  for (const doc of queuedDocs) {
     const row = { id: doc.id, ...doc.data() } as any;
     try {
       if (!row.admin_response?.trim()) {
@@ -46,12 +45,12 @@ export async function GET(req: NextRequest) {
 
       await sendEmail({ to: row.email, subject, html });
 
-      await doc.ref.update({
+      await firestoreUpdate(doc.ref.name, {
         email_response_status: "sent",
         last_updated: new Date().toISOString(),
       });
 
-      await adminDb.collection("send_log").add({
+      await firestoreAdd("send_log", {
         applicant_id: row.id,
         template_key: "application_response",
         sent_at: new Date().toISOString(),
@@ -88,7 +87,7 @@ function buildResponseEmail({ firstName, response }: { firstName: string; respon
           <p style="margin:0;font-size:14px;color:#6B7280;">Warm regards,<br /><strong style="color:#374151;">The LaunchPadX Review Team</strong></p>
         </td></tr>
         <tr><td style="background:#F3F4F6;padding:20px 40px;border-top:1px solid #E5E7EB;">
-          <p style="margin:0;font-size:12px;color:#9CA3AF;text-align:center;">© ${new Date().getFullYear()} GrowthConnect Africa. All rights reserved.</p>
+          <p style="margin:0;font-size:12px;color:#9CA3AF;text-align:center;">(c) ${new Date().getFullYear()} GrowthConnect Africa. All rights reserved.</p>
         </td></tr>
       </table>
     </td></tr>

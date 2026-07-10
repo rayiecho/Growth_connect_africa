@@ -1,6 +1,6 @@
 ﻿import { redirect } from "next/navigation";
 import { getVerifiedAdminSession } from "@/lib/firebase/session";
-import { adminDb } from "@/lib/firebase/admin";
+import { firestoreGetAll } from "@/lib/firebase/rest-admin";
 import { DashboardTabs } from "@/components/admin/DashboardTabs";
 import type { Applicant, VideoSubmission, Verification } from "@/lib/firebase/types";
 
@@ -8,28 +8,23 @@ export default async function DashboardPage() {
   const session = await getVerifiedAdminSession();
   if (!session) redirect("/admin/login");
 
-  // Fetch Firestore collection snapshots simultaneously
-  const [applicantsSnap, videoSnap, verificationsSnap] = await Promise.all([
-    adminDb.collection("applicants").get(),
-    adminDb.collection("video_submissions").get(),
-    adminDb.collection("verifications").get(),
+  const [applicantsDocs, videoDocs, verificationsDocs] = await Promise.all([
+    firestoreGetAll("applicants"),
+    firestoreGetAll("video_submissions"),
+    firestoreGetAll("verifications"),
   ]);
 
-  // Map Firestore document data array structures
-  const applicants: Applicant[] = applicantsSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  }) as Applicant).sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
+  const applicants: Applicant[] = applicantsDocs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Applicant)
+    .sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
 
-  const videoSubmissions: VideoSubmission[] = videoSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  } as VideoSubmission)).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
+  const videoSubmissions: VideoSubmission[] = videoDocs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as VideoSubmission)
+    .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
 
-  const verifications: Verification[] = verificationsSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  } as Verification)).sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
+  const verifications: Verification[] = verificationsDocs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Verification)
+    .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
 
   const total = applicants.length;
   const active = applicants.filter((a) => a.current_status === "Active").length;

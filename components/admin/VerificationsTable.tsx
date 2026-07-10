@@ -1,9 +1,6 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { ref, update } from "firebase/database";
-import { getDownloadURL, ref as storageRef } from "firebase/storage";
-import { clientDb, clientStorage } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Input";
 import type { Verification } from "@/lib/firebase/types";
@@ -12,6 +9,7 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
   const [items, setItems] = useState(initialData);
   const [search, setSearch] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filtered = items.filter((v) =>
     `${v.applicant_first_name} ${v.applicant_last_name} ${v.email}`
@@ -19,44 +17,43 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
       .includes(search.toLowerCase())
   );
 
-  async function updateStatus(id: string, status: "Approved" | "Rejected") {
+  async function updateStatus(id: string, applicantId: string, status: "Approved" | "Rejected") {
     setUpdatingId(id);
+    setActionError(null);
     try {
-      const updates: Record<string, any> = {
-        review_status: status,
-        review_completed_at: new Date().toISOString(),
-      };
+      const res = await fetch("/api/admin/verifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, applicant_id: applicantId, status }),
+      });
 
-      await update(ref(clientDb, `verifications/${id}`), updates);
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setActionError(`Server error (status ${res.status}). Please try again.`);
+        setUpdatingId(null);
+        return;
+      }
 
-      // On Approval, advance the applicant to Program Participant — this
-      // was a real gap in the old Supabase version (nothing did this).
-      if (status === "Approved") {
-        const item = items.find((v) => v.id === id);
-        if (item) {
-          await update(ref(clientDb, `applicants/${item.applicant_id}`), {
-            current_stage: "Program Participant",
-            current_status: "Active",
-            verified_at: new Date().toISOString(),
-          });
-        }
+      if (!res.ok) {
+        setActionError(data.error || "Failed to update verification.");
+        setUpdatingId(null);
+        return;
       }
 
       setItems((prev) => prev.map((v) => (v.id === id ? { ...v, review_status: status } : v)));
     } catch (err) {
       console.error(err);
+      setActionError("Network error. Please try again.");
     }
     setUpdatingId(null);
   }
 
   async function viewFile(path: string | null) {
     if (!path) return;
-    try {
-      const url = await getDownloadURL(storageRef(clientStorage, path));
-      window.open(url, "_blank");
-    } catch (err) {
-      console.error("Failed to get file URL:", err);
-    }
+    const segments = path.split("/").map(encodeURIComponent).join("/");
+    window.open(`/api/public/verification/file/${segments}`, "_blank");
   }
 
   return (
@@ -68,6 +65,10 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+
+      {actionError && (
+        <p className="text-sm text-red-500 mb-4">{actionError}</p>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-brand-line">
         <table className="w-full text-sm text-left">
@@ -87,7 +88,7 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
               <tr key={v.id} className="border-t border-brand-line">
                 <td className="px-4 py-3">{v.applicant_first_name} {v.applicant_last_name}</td>
                 <td className="px-4 py-3 text-brand-slate">{v.email}</td>
-                <td className="px-4 py-3">{v.lpx_id || "—"}</td>
+                <td className="px-4 py-3">{v.lpx_id || "-"}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-col gap-1">
                     <button type="button" onClick={() => viewFile(v.verification_form_path)} className="text-brand-green font-medium hover:underline text-left">
@@ -99,7 +100,7 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
                   </div>
                 </td>
                 <td className="px-4 py-3 text-brand-slate">
-                  {v.submitted_at ? new Date(v.submitted_at).toLocaleDateString() : "—"}
+                  {v.submitted_at ? new Date(v.submitted_at).toLocaleDateString() : "-"}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -116,10 +117,10 @@ export function VerificationsTable({ initialData }: { initialData: Verification[
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <Button variant="primary" className="!px-4 !py-2 text-xs" disabled={updatingId === v.id} onClick={() => updateStatus(v.id, "Approved")}>
+                    <Button variant="primary" className="!px-4 !py-2 text-xs" disabled={updatingId === v.id} onClick={() => updateStatus(v.id, v.applicant_id, "Approved")}>
                       Approve
                     </Button>
-                    <Button variant="secondary" className="!px-4 !py-2 text-xs" disabled={updatingId === v.id} onClick={() => updateStatus(v.id, "Rejected")}>
+                    <Button variant="secondary" className="!px-4 !py-2 text-xs" disabled={updatingId === v.id} onClick={() => updateStatus(v.id, v.applicant_id, "Rejected")}>
                       Reject
                     </Button>
                   </div>

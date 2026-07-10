@@ -1,9 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase/admin";
+import { verifyIdTokenRest, createSessionCookieRest } from "@/lib/firebase/rest-admin";
 
-// POST /api/auth/session
-// Body: { idToken: string } — the Firebase ID token from client-side sign-in.
-// Verifies it, checks the admin claim, and sets a secure session cookie.
 export async function POST(req: NextRequest) {
   const { idToken } = await req.json();
 
@@ -12,7 +9,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const decoded = await adminAuth.verifyIdToken(idToken);
+    const decoded = await verifyIdTokenRest(idToken);
 
     if (!decoded.admin) {
       return NextResponse.json(
@@ -21,9 +18,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5-day session, matching a typical "stay logged in" expectation.
     const expiresIn = 5 * 24 * 60 * 60 * 1000;
-    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
+    const sessionCookie = await createSessionCookieRest(idToken, expiresIn);
 
     const response = NextResponse.json({ success: true });
     response.cookies.set("session", sessionCookie, {
@@ -41,7 +37,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/auth/session — logout, clears the cookie.
 export async function DELETE() {
   const response = NextResponse.json({ success: true });
   response.cookies.set("session", "", { maxAge: 0, path: "/" });

@@ -1,8 +1,6 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { ref, update } from "firebase/database";
-import { clientDb } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Input";
 import type { VideoSubmission } from "@/lib/firebase/types";
@@ -12,7 +10,9 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [whatsappLinks, setWhatsappLinks] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filtered = submissions.filter((s) =>
     `${s.applicant_first_name} ${s.applicant_last_name} ${s.applicant_email}`
@@ -20,36 +20,70 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
       .includes(search.toLowerCase())
   );
 
-  async function handleApprove(id: string) {
+  async function callUpdate(
+    id: string, 
+    action: "approve" | "reject" | "action_required", 
+    feedbackText?: string,
+    whatsappLink?: string
+  ) {
     setSavingId(id);
+    setActionError(null);
     try {
-      await update(ref(clientDb, `video_submissions/${id}`), {
-        review_status: "approved",
-        approved_at: new Date().toISOString(),
+      const res = await fetch("/api/admin/video-submissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          id, 
+          action, 
+          feedback: feedbackText,
+          whatsapp_link: whatsappLink 
+        }),
       });
-      setSubmissions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, review_status: "approved" } : s))
-      );
-      setExpandedId(null);
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setActionError(`Server error (status ${res.status}). Please try again.`);
+        setSavingId(null);
+        return false;
+      }
+
+      if (!res.ok) {
+        setActionError(data.error || "Something went wrong. Please try again.");
+        setSavingId(null);
+        return false;
+      }
+
+      return true;
     } catch (err) {
       console.error(err);
+      setActionError("Network error. Please try again.");
+      setSavingId(null);
+      return false;
+    }
+  }
+
+  async function handleApprove(id: string) {
+    const link = whatsappLinks[id]?.trim();
+    if (!link) {
+      setActionError("A WhatsApp group link is required to approve this submission.");
+      return;
+    }
+
+    const ok = await callUpdate(id, "approve", undefined, link);
+    if (ok) {
+      setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, review_status: "approved", whatsapp_link: link } : s)));
+      setExpandedId(null);
     }
     setSavingId(null);
   }
 
   async function handleReject(id: string) {
-    setSavingId(id);
-    try {
-      await update(ref(clientDb, `video_submissions/${id}`), {
-        review_status: "rejected",
-        rejected_at: new Date().toISOString(),
-      });
-      setSubmissions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, review_status: "rejected" } : s))
-      );
+    const ok = await callUpdate(id, "reject");
+    if (ok) {
+      setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, review_status: "rejected" } : s)));
       setExpandedId(null);
-    } catch (err) {
-      console.error(err);
     }
     setSavingId(null);
   }
@@ -59,30 +93,13 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
     if (!fb) return;
     if (!window.confirm("Send action-required feedback to this applicant?")) return;
 
-    setSavingId(id);
-    try {
-      // Note: this only records the feedback + status. Actually EMAILING it
-      // instantly still needs a server route, since sending email requires
-      // AWS credentials that must never reach the browser. That route is
-      // built in the cron-routes checkpoint, right after this file.
-      await update(ref(clientDb, `video_submissions/${id}`), {
-        review_status: "action_required",
-        feedback: fb,
-      });
+    const ok = await callUpdate(id, "action_required", fb);
+    if (ok) {
       setSubmissions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, review_status: "action_required", feedback: fb } : s))
       );
-
-      await fetch("/api/cron/video/action-required", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId: id, feedback: fb }),
-      });
-
       setFeedback((prev) => ({ ...prev, [id]: "" }));
       setExpandedId(null);
-    } catch (err) {
-      console.error(err);
     }
     setSavingId(null);
   }
@@ -109,6 +126,10 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
         />
       </div>
 
+      {actionError && (
+        <p className="text-sm text-red-500 mb-4">{actionError}</p>
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-brand-line">
         <table className="w-full text-sm text-left">
           <thead className="bg-gray-50 text-brand-charcoal">
@@ -132,7 +153,7 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
                         onClick={() => setExpandedId(isExpanded ? null : s.id)}
                         className="text-brand-charcoal font-medium hover:text-brand-green text-left"
                       >
-                        {isExpanded ? "▾ " : "▸ "}
+                        {isExpanded ? "v " : "> "}
                         {s.applicant_first_name} {s.applicant_last_name}
                       </button>
                     </td>
@@ -143,7 +164,7 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
                       </a>
                     </td>
                     <td className="px-4 py-3 text-brand-slate">
-                      {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}
+                      {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "-"}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block rounded-pill px-3 py-1 text-xs font-medium ${statusColor(s.review_status)}`}>
@@ -157,15 +178,23 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
                       <td colSpan={5} className="px-6 py-5">
                         {s.review_status !== "pending" ? (
                           <div className={`rounded-lg px-4 py-3 text-sm ${statusColor(s.review_status)}`}>
-                            {s.review_status === "approved" && "✅ Approved — verification email sends 10 days after this decision."}
-                            {s.review_status === "rejected" && "❌ Rejected — training email sends 10 days after this decision."}
-                            {s.review_status === "action_required" && `⚠️ Action required sent: "${s.feedback}"`}
+                            {s.review_status === "approved" && `Approved - verification email sends 10 days after this decision. Link: ${(s as any).whatsapp_link ?? 'None'}`}
+                            {s.review_status === "rejected" && "Rejected - training email sends 10 days after this decision."}
+                            {s.review_status === "action_required" && `Action required sent: "${s.feedback}"`}
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Button variant="primary" disabled={savingId === s.id} onClick={() => handleApprove(s.id)}>
-                              Approve
-                            </Button>
+                            <div>
+                              <TextInput
+                                placeholder="WhatsApp group link..."
+                                value={whatsappLinks[s.id] ?? ""}
+                                onChange={(e) => setWhatsappLinks((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                                className="mb-2"
+                              />
+                              <Button variant="primary" disabled={savingId === s.id} onClick={() => handleApprove(s.id)} className="w-full">
+                                Approve
+                              </Button>
+                            </div>
                             <div>
                               <textarea
                                 rows={2}
@@ -178,9 +207,11 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
                                 Send Feedback Instantly
                               </Button>
                             </div>
-                            <Button variant="secondary" disabled={savingId === s.id} onClick={() => handleReject(s.id)}>
-                              Reject
-                            </Button>
+                            <div className="flex items-end">
+                              <Button variant="secondary" disabled={savingId === s.id} onClick={() => handleReject(s.id)} className="w-full">
+                                Reject
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </td>
@@ -192,7 +223,7 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-brand-slate">
-                  No video submissions match your search.
+                  No submissions found.
                 </td>
               </tr>
             )}
@@ -202,4 +233,3 @@ export function VideoSubmissionsTable({ initialData }: { initialData: VideoSubmi
     </div>
   );
 }
-

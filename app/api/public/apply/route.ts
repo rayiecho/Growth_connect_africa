@@ -1,25 +1,30 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { firestoreAdd } from "@/lib/firebase/rest-admin";
+import { sendEmail } from "@/lib/engine/ses";
+import { applicationReceivedEmail } from "@/lib/engine/emailTemplates";
+import { addCalendarDays, reviewWindowOnOrAfter } from "@/lib/engine/dates";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const email = (body.email || "").trim().toLowerCase();
-    if (!email) {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
-    }
+    const now = new Date();
 
-    // Switched to Firestore collection .add() reference
-    const docRef = await adminDb.collection("applicants").add({
+    const releaseDate = reviewWindowOnOrAfter(addCalendarDays(now, 5));
+
+    const docRef = await firestoreAdd("applicants", {
       ...body,
-      email,
-      date_applied: new Date().toISOString(),
+      email: (body.email || "").trim().toLowerCase(),
+      submitted_at: now.toISOString(),
       current_stage: "Application Submitted",
       current_status: "Active",
+      video_invite_release_date: releaseDate.toISOString().slice(0, 10),
       video_invite_sent_at: null,
     });
 
-    return NextResponse.json({ success: true, id: docRef.id });
+    const { subject, html } = applicationReceivedEmail(body.first_name ?? "there");
+    await sendEmail({ to: body.email, subject, html });
+
+    return NextResponse.json({ success: true, id: (docRef as any)?.id ?? null });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ error: "Something went wrong submitting your application." }, { status: 500 });

@@ -68,3 +68,14 @@ export function formatDeadline(date: Date): string {
     year: "numeric",
   });
 }
+
+/** Like nextReviewWindow, but if `date` itself is already Tue/Fri, returns that date instead of skipping to the next one. */
+export function reviewWindowOnOrAfter(date: Date): Date {
+  const day = date.getDay();
+  if (day === 2 || day === 5) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  return nextReviewWindow(date);
+}

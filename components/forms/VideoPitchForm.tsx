@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput, CheckboxField } from "@/components/ui/Input";
+import { SubmissionSuccess } from "@/components/ui/SubmissionSuccess";
 
 export function VideoPitchForm() {
   const [email, setEmail] = useState("");
@@ -37,7 +38,14 @@ export function VideoPitchForm() {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError(`Server error (status ${res.status}). Please try again.`);
+        setSubmitting(false);
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error || "Something went wrong submitting your video. Please try again.");
@@ -55,17 +63,10 @@ export function VideoPitchForm() {
 
   if (submitted) {
     return (
-      <div className="max-w-xl">
-        <span className="brand-eyebrow-line" />
-        <h2 className="text-2xl font-bold text-brand-charcoal mb-3">
-          Video pitch received
-        </h2>
-        <p className="text-brand-slate">
-          Your submission has been added to the review queue. Assessments are
-          reviewed every Tuesday and Friday — you&apos;ll hear from us after
-          the next review cycle.
-        </p>
-      </div>
+      <SubmissionSuccess
+        title="Video pitch received"
+        message="Your submission has been added to our review queue. We'll follow up by email with your next steps."
+      />
     );
   }
 

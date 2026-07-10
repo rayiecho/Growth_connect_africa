@@ -1,8 +1,7 @@
-"use client";
+﻿"use client";
 
+import { SubmissionSuccess } from "@/components/ui/SubmissionSuccess";
 import { useState } from "react";
-import { clientStorage } from "@/lib/firebase/client";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput, CheckboxField } from "@/components/ui/Input";
 
@@ -16,6 +15,30 @@ export function VerificationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function uploadFile(
+    file: File,
+    folder: string,
+    type: "verification-form" | "payment-receipt"
+  ): Promise<string> {
+    const formData = new FormData();
+    formData.append("folder", folder);
+    formData.append("type", type);
+    formData.append("file", file);
+    const res = await fetch("/api/public/verification/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    let data: any = {};
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Upload failed (server error ${res.status})`);
+    }
+    if (!res.ok) throw new Error(data.error || "Upload failed");
+    return data.key as string;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,19 +59,8 @@ export function VerificationForm() {
       const normalizedEmail = email.trim().toLowerCase();
       const folder = `${normalizedEmail}-${Date.now()}`;
 
-      const verificationRef = ref(
-        clientStorage,
-        `verification-uploads/${folder}/verification-form-${verificationFile.name}`
-      );
-      await uploadBytes(verificationRef, verificationFile);
-      const verification_form_path = await getDownloadURL(verificationRef);
-
-      const receiptRef = ref(
-        clientStorage,
-        `verification-uploads/${folder}/payment-receipt-${receiptFile.name}`
-      );
-      await uploadBytes(receiptRef, receiptFile);
-      const payment_receipt_path = await getDownloadURL(receiptRef);
+      const verification_form_path = await uploadFile(verificationFile, folder, "verification-form");
+      const payment_receipt_path = await uploadFile(receiptFile, folder, "payment-receipt");
 
       const res = await fetch("/api/public/verification", {
         method: "POST",
@@ -61,7 +73,14 @@ export function VerificationForm() {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError(`Server error (status ${res.status}). Please try again.`);
+        setSubmitting(false);
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error || "Something went wrong submitting your verification. Please try again.");
@@ -70,8 +89,8 @@ export function VerificationForm() {
       }
 
       setSubmitted(true);
-    } catch (err) {
-      setError("Something went wrong uploading your files. Please try again.");
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong uploading your files. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -90,6 +109,7 @@ export function VerificationForm() {
           review is complete.
         </p>
       </div>
+
     );
   }
 
@@ -109,12 +129,7 @@ export function VerificationForm() {
       </Field>
 
       <Field label="Email Address" required>
-        <TextInput
-          required
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <TextInput required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </Field>
 
       <Field label="LaunchPadX ID">

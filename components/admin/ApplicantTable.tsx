@@ -1,8 +1,6 @@
 ﻿"use client";
 
 import { useState } from "react";
-import { ref, update } from "firebase/database";
-import { clientDb } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Input";
 import type { Applicant } from "@/lib/firebase/types";
@@ -12,6 +10,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filtered = applicants.filter((a) =>
     `${a.first_name} ${a.last_name} ${a.email}`.toLowerCase().includes(search.toLowerCase())
@@ -22,14 +21,33 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
     fields: { assigned_reviewer?: string; notes?: string; next_action_required?: string }
   ) {
     setSavingId(id);
+    setActionError(null);
     try {
-      await update(ref(clientDb, `applicants/${id}`), {
-        ...fields,
-        last_updated: new Date().toISOString(),
+      const res = await fetch("/api/admin/applicants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...fields }),
       });
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setActionError(`Server error (status ${res.status}). Please try again.`);
+        setSavingId(null);
+        return;
+      }
+
+      if (!res.ok) {
+        setActionError(data.error || "Failed to save changes.");
+        setSavingId(null);
+        return;
+      }
+
       setApplicants((prev) => prev.map((a) => (a.id === id ? { ...a, ...fields } : a)));
     } catch (err) {
       console.error("Failed to save:", err);
+      setActionError("Network error. Please try again.");
     }
     setSavingId(null);
   }
@@ -43,6 +61,10 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+
+      {actionError && (
+        <p className="text-sm text-red-500 mb-4">{actionError}</p>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-brand-line">
         <table className="w-full text-sm text-left">
@@ -67,7 +89,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                         onClick={() => setExpandedId(isExpanded ? null : a.id)}
                         className="text-brand-charcoal font-medium hover:text-brand-green text-left"
                       >
-                        {isExpanded ? "▾ " : "▸ "}
+                        {isExpanded ? "v " : "> "}
                         {a.first_name} {a.last_name}
                       </button>
                     </td>
@@ -87,7 +109,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-brand-slate">
-                      {a.date_applied ? new Date(a.date_applied).toLocaleDateString() : "—"}
+                      {a.date_applied ? new Date(a.date_applied).toLocaleDateString() : "-"}
                     </td>
                   </tr>
 
@@ -144,7 +166,7 @@ function Detail({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
       <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">{label}</p>
-      <p className="text-brand-slate">{value || "—"}</p>
+      <p className="text-brand-slate">{value || "-"}</p>
     </div>
   );
 }
@@ -153,7 +175,7 @@ function LongField({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="space-y-1 mb-5">
       <p className="text-xs font-semibold text-brand-charcoal uppercase tracking-wide">{label}</p>
-      <p className="text-brand-slate whitespace-pre-wrap">{value || "—"}</p>
+      <p className="text-brand-slate whitespace-pre-wrap">{value || "-"}</p>
     </div>
   );
 }
