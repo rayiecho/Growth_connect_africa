@@ -4,3 +4,8 @@
 .env.local
 .env*.local
 *.log
+
+# Deploy & Compilation Caches
+.open-next/
+.wrangler/
+.next/
