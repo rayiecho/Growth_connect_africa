@@ -6,25 +6,32 @@ export function SiteFooter() {
       <div className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-10">
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-              <circle cx="8" cy="8" r="3" fill="#fff" />
-              <circle cx="8" cy="16" r="3" fill="#fff" />
-              <circle cx="8" cy="24" r="3" fill="#2FA36B" />
-              <circle cx="16" cy="8" r="3" fill="#fff" />
-              <circle cx="24" cy="16" r="3" fill="#fff" />
-              <line x1="8" y1="8" x2="8" y2="24" stroke="#fff" strokeWidth="1.5" />
-              <line x1="8" y1="8" x2="16" y2="8" stroke="#fff" strokeWidth="1.5" />
-              <line x1="8" y1="16" x2="24" y2="16" stroke="#fff" strokeWidth="1.5" />
+            {/* White-Accented Branded Vector Logo Emblem Container */}
+            <svg xmlns="http://w3.org" viewBox="0 0 1000 350" className="h-8 w-auto">
+              <g fill="#FFFFFF">
+                <circle cx="70" cy="275" r="40"/>
+                <circle cx="190" cy="275" r="40"/>
+                <circle cx="190" cy="155" r="40"/>
+                <circle cx="310" cy="155" r="40"/>
+                <circle cx="310" cy="35" r="40"/>
+              </g>
+              <circle cx="310" cy="275" r="40" fill="#16A34A"/>
+              <g stroke="#FFFFFF" strokeWidth="8">
+                <line x1="110" y1="275" x2="150" y2="275"/>
+                <line x1="230" y1="275" x2="270" y2="275"/>
+                <line x1="190" y1="195" x2="190" y2="235"/>
+                <line x1="230" y1="155" x2="270" y2="155"/>
+                <line x1="310" y1="75" x2="310" y2="115"/>
+                <line x1="310" y1="195" x2="310" y2="235"/>
+              </g>
+              <text x="430" y="165" fontFamily="Arial, sans-serif" fontWeight="bold" fontSize="140" fill="#FFFFFF" letterSpacing="-4">Growth</text>
+              <text x="430" y="295" fontFamily="Arial, sans-serif" fontSize="140" fill="#FFFFFF" letterSpacing="-2">Connect</text>
             </svg>
-            <span className="font-bold leading-tight text-sm">
-              Growth<br />Connect
-            </span>
           </div>
           <p className="text-white/60 text-sm mb-4">
-            Growth Connect links entrepreneurs to opportunities and tools for
-            real impact and sustainable growth.
+            Growth Connect links entrepreneurs to opportunities and tools for real impact and sustainable growth.
           </p>
-          <div className="flex gap-4 text-white">
+          <div className="flex gap-4 text-white/40 text-xs">
             <span>FB</span>
             <span>IG</span>
             <span>TW</span>
@@ -35,10 +42,18 @@ export function SiteFooter() {
         <div>
           <h4 className="font-bold mb-4">Useful links</h4>
           <ul className="space-y-3 text-white/70 text-sm">
-            <li>Dashboard</li>
-            <li>About Us</li>
-            <li>Privacy Policy</li>
-            <li>Terms &amp; condition</li>
+            <li>
+              <Link href="/admin/dashboard" className="hover:text-brand-green transition-colors">Dashboard</Link>
+            </li>
+            <li>
+              <a href="https://growthconnect.africa" className="hover:text-brand-green transition-colors">About Us</a>
+            </li>
+            <li>
+              <Link href="/privacy" className="hover:text-brand-green transition-colors">Privacy Policy</Link>
+            </li>
+            <li>
+              <Link href="/terms" className="hover:text-brand-green transition-colors">Terms &amp; condition</Link>
+            </li>
           </ul>
         </div>
 
