@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export function SiteHeader() {
   return (
@@ -33,10 +33,9 @@ export function SiteHeader() {
           <a href="https://growthconnect.africa" className="hover:text-brand-green transition-colors">HOME</a>
           <a href="https://growthconnect.africaabout-us/" className="hover:text-brand-green transition-colors">ABOUT</a>
           <a href="https://growthconnect.africablog/" className="hover:text-brand-green transition-colors">BLOG</a>
-          <Link href="/privacy" className="hover:text-brand-green transition-colors">PRIVACY</Link>
-          <Link href="/terms" className="hover:text-brand-green transition-colors">TERMS</Link>
         </nav>
       </div>
     </header>
   );
 }
+

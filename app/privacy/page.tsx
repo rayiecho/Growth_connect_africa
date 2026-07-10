@@ -1,10 +1,15 @@
-"use client";
+﻿"use client";
+
+import Link from "next/link";
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-6 text-brand-charcoal text-sm">
       <div className="max-w-3xl mx-auto bg-white border border-brand-line rounded-2xl p-8 space-y-6 shadow-sm">
-        <h1 className="text-3xl font-bold tracking-tight text-brand-charcoal mb-2">Privacy Policy</h1>
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-3xl font-bold tracking-tight text-brand-charcoal">Privacy Policy</h1>
+          <Link href="/" className="text-xs text-brand-green hover:underline font-medium">Back to Home</Link>
+        </div>
         <p className="text-brand-slate text-xs">Last Updated: July 2026</p>
         
         <span className="block h-px w-full bg-brand-line my-4" />
@@ -27,6 +32,27 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-lg font-bold">3. Technical Security Protocols</h2>
           <p className="text-brand-slate leading-relaxed">
             Data configurations are written directly to encrypted Firestore infrastructure node shards. Access controls are constrained through strict server-side cryptographic sessions layer checking, preventing unauthorized network data leaks.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">4. Tracking Technologies and Cookies</h2>
+          <p className="text-brand-slate leading-relaxed">
+            We employ lightweight browser tokens and analytical scripts to monitor entry funnel routing performance. These components save state values locally to eliminate redundant layout loads and securely cache valid authentication sessions.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">5. Third-Party Data Disclosures</h2>
+          <p className="text-brand-slate leading-relaxed">
+            Your metrics coordinates are never sold or rented. Data records are only shared programmatically with authenticated operational sub-processors (such as automated secure hosting arrays or delivery channels) strictly required to fulfill your evaluation pipeline actions.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">6. Data Retention and Deletion Rights</h2>
+          <p className="text-brand-slate leading-relaxed">
+            We preserve profile identifiers for the duration of the active cohort cycle. Users possess full authority to request a formal copy of held fields or initiate account data purge scripts by contacting the GrowthConnect system administrator team.
           </p>
         </section>
       </div>

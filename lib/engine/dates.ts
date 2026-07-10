@@ -79,3 +79,14 @@ export function reviewWindowOnOrAfter(date: Date): Date {
   }
   return nextReviewWindow(date);
 }
+
+/** The actual release date for a decision: next Tue/Fri on-or-after (submittedAt + N days). */
+export function computeReleaseDate(submittedAt: Date, windowDays: number): Date {
+  const target = addCalendarDays(submittedAt, windowDays);
+  return reviewWindowOnOrAfter(target);
+}
+
+/** YYYY-MM-DD key used for batch grouping - stable, sortable, timezone-safe for our purposes. */
+export function dateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}

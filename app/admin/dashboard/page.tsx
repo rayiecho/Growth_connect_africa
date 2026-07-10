@@ -1,7 +1,7 @@
 ﻿import { redirect } from "next/navigation";
 import { getVerifiedAdminSession } from "@/lib/firebase/session";
 import { firestoreGetAll } from "@/lib/firebase/rest-admin";
-import { DashboardTabs } from "@/components/admin/DashboardTabs";
+import { AdminShell } from "@/components/admin/AdminShell";
 import type { Applicant, VideoSubmission, Verification } from "@/lib/firebase/types";
 
 export default async function DashboardPage() {
@@ -17,18 +17,12 @@ export default async function DashboardPage() {
   const applicants: Applicant[] = applicantsDocs
     .map((doc) => ({ id: doc.id, ...doc.data() }) as Applicant)
     .sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
-
   const videoSubmissions: VideoSubmission[] = videoDocs
     .map((doc) => ({ id: doc.id, ...doc.data() }) as VideoSubmission)
     .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
-
   const verifications: Verification[] = verificationsDocs
     .map((doc) => ({ id: doc.id, ...doc.data() }) as Verification)
     .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
-
-  const total = applicants.length;
-  const active = applicants.filter((a) => a.current_status === "Active").length;
-  const rejected = applicants.filter((a) => a.current_status === "Rejected").length;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -40,33 +34,7 @@ export default async function DashboardPage() {
           </button>
         </form>
       </header>
-
-      <div className="max-w-6xl mx-auto px-8 py-10">
-        <div className="grid grid-cols-3 gap-4 mb-10">
-          <StatCard label="Total Applicants" value={total} />
-          <StatCard label="Active" value={active} />
-          <StatCard label="Rejected" value={rejected} />
-        </div>
-
-        <span className="brand-eyebrow-line" />
-        <h2 className="text-xl font-bold text-brand-charcoal mb-6">
-          Review Queue
-        </h2>
-        <DashboardTabs
-          applicants={applicants}
-          videoSubmissions={videoSubmissions}
-          verifications={verifications}
-        />
-      </div>
+      <AdminShell applicants={applicants} videoSubmissions={videoSubmissions} verifications={verifications} />
     </main>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="bg-white rounded-xl border border-brand-line p-6">
-      <p className="text-sm text-brand-slate mb-1">{label}</p>
-      <p className="text-3xl font-bold text-brand-charcoal">{value}</p>
-    </div>
   );
 }

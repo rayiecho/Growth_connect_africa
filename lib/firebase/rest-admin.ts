@@ -444,3 +444,30 @@ export async function firestoreQueryOrdered(
     }));
 }
 
+
+export async function getBatchLink(batchDate: string): Promise<string | null> {
+  const sa = getServiceAccount();
+  const token = await getAccessToken();
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/batch_links/${batchDate}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (res.status === 404) return null;
+  const data = await res.json() as any;
+  if (!res.ok) throw new Error(`getBatchLink failed: ${JSON.stringify(data)}`);
+  return fromFirestoreFields(data.fields).whatsapp_link ?? null;
+}
+
+export async function setBatchLink(batchDate: string, link: string): Promise<void> {
+  const sa = getServiceAccount();
+  const token = await getAccessToken();
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${sa.project_id}/databases/(default)/documents/batch_links/${batchDate}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ fields: { whatsapp_link: { stringValue: link } } }),
+    }
+  );
+  if (!res.ok) throw new Error(`setBatchLink failed: ${await res.text()}`);
+}
