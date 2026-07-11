@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -66,16 +66,16 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
         <p className="text-sm text-red-500 mb-4">{actionError}</p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-brand-line">
-        <table className="w-full text-sm text-left">
+      <div className="overflow-x-auto rounded-lg border border-brand-line w-full">
+        <table className="w-full min-w-[1000px] text-sm text-left table-fixed">
           <thead className="bg-gray-50 text-brand-charcoal">
             <tr>
-              <th className="px-4 py-3 font-semibold">Name</th>
-              <th className="px-4 py-3 font-semibold">LaunchPadX ID</th>
-              <th className="px-4 py-3 font-semibold">Email</th>
-              <th className="px-4 py-3 font-semibold">Stage</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Applied</th>
+              <th className="px-4 py-3 font-semibold w-[18%]">Name</th>
+              <th className="px-4 py-3 font-semibold w-[16%]">LaunchPadX ID</th>
+              <th className="px-4 py-3 font-semibold w-[28%]">Email</th>
+              <th className="px-4 py-3 font-semibold w-[20%]">Stage</th>
+              <th className="px-4 py-3 font-semibold w-[10%]">Status</th>
+              <th className="px-4 py-3 font-semibold w-[8%]">Applied</th>
             </tr>
           </thead>
           <tbody>
@@ -85,6 +85,14 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                 <tr key={a.id} className="border-t border-brand-line p-0">
                   <td colSpan={6} className="p-0">
                     <table className="w-full text-sm text-left table-fixed">
+                      <colgroup>
+                        <col style={{ width: '18%' }} />
+                        <col style={{ width: '16%' }} />
+                        <col style={{ width: '28%' }} />
+                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '10%' }} />
+                        <col style={{ width: '8%' }} />
+                      </colgroup>
                       <tbody>
                         <tr>
                           <td className="px-4 py-3">
@@ -116,7 +124,7 @@ export function ApplicantTable({ initialData }: { initialData: Applicant[] }) {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-brand-slate">
-                            {a.date_applied ? new Date(a.date_applied).toLocaleDateString() : "-"}
+                            {(a.submitted_at || a.date_applied) ? new Date(a.submitted_at || a.date_applied).toLocaleDateString() : "-"}
                           </td>
                         </tr>
 
@@ -236,3 +244,6 @@ function AdminFieldsEditor({
     </div>
   );
 }
+
+
+

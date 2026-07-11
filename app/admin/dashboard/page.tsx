@@ -16,7 +16,9 @@ export default async function DashboardPage() {
 
   const applicants: Applicant[] = applicantsDocs
     .map((doc) => ({ id: doc.id, ...doc.data() }) as Applicant)
-    .sort((a, b) => (b.date_applied ?? "").localeCompare(a.date_applied ?? ""));
+    .sort((a, b) =>
+      (b.submitted_at ?? b.date_applied ?? "").localeCompare(a.submitted_at ?? a.date_applied ?? "")
+    );
   const videoSubmissions: VideoSubmission[] = videoDocs
     .map((doc) => ({ id: doc.id, ...doc.data() }) as VideoSubmission)
     .sort((a, b) => (b.submitted_at ?? "").localeCompare(a.submitted_at ?? ""));
@@ -38,3 +40,4 @@ export default async function DashboardPage() {
     </main>
   );
 }
+

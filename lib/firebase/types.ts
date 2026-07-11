@@ -1,4 +1,4 @@
-export type Applicant = {
+﻿export type Applicant = {
   id: string;
   first_name: string;
   last_name: string;
@@ -7,6 +7,7 @@ export type Applicant = {
   current_stage: string;
   current_status: string;
   date_applied: string;
+  submitted_at?: string;
   industry: string | null;
   other_industry: string | null;
   business_name: string | null;

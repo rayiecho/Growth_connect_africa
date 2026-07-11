@@ -20,21 +20,6 @@
 
       <p className="text-brand-slate mb-8">{message}</p>
 
-      <div className="mb-8">
-        <p className="text-sm font-semibold text-brand-charcoal mb-3">
-          While you wait, take a moment to watch this:
-        </p>
-        <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
-          <iframe
-            className="absolute inset-0 w-full h-full"
-            src={`https://www.youtube.com/embed/${videoId}`}
-            title="LaunchPadX"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      </div>
-
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <a href="/faq" className="font-semibold text-brand-green hover:text-brand-green-dark">
           Have questions? Visit our FAQs →
@@ -45,3 +30,4 @@
     </div>
   );
 }
+

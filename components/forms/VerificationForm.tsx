@@ -139,7 +139,6 @@ export function VerificationForm() {
       <Field
         label="Upload Verification Form (PDF)"
         required
-        hint="Download verification form here"
       >
         <input
           type="file"
@@ -148,6 +147,17 @@ export function VerificationForm() {
           onChange={(e) => setVerificationFile(e.target.files?.[0] ?? null)}
           className="block w-full text-sm text-brand-slate file:mr-4 file:rounded-pill file:border-0 file:bg-brand-green file:px-4 file:py-2 file:text-white file:font-medium hover:file:bg-brand-green-dark"
         />
+        <p className="text-xs text-brand-slate mt-2 flex items-center gap-2">
+          Download verification form{' '}
+          <a 
+            href="https://drive.google.com/file/d/1Tv0KHAbU8CHPXcY98UofbaRJjEKfm4Zc/view?usp=sharing" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green-dark hover:bg-brand-green hover:text-white transition-colors rounded-pill px-3 py-1 text-xs font-semibold"
+          >
+            Download Form
+          </a>
+        </p>
       </Field>
 
       <Field
@@ -179,3 +189,9 @@ export function VerificationForm() {
     </form>
   );
 }
+
+
+
+
+
+
