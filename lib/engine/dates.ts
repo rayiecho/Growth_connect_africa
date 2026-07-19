@@ -1,11 +1,11 @@
-// The single source of truth for the review-window rule, used everywhere
+﻿// The single source of truth for the review-window rule, used everywhere
 // this timing logic is needed: application review cycle, the window a
 // video-approval hold releases into, and the 7-working-day verification
 // review roll-forward. All three follow the identical rule, so it's one
 // function, not three copies that could drift out of sync.
 
 /**
- * Given any date, returns the NEXT Tuesday or Friday strictly after it —
+ * Given any date, returns the NEXT Tuesday or Friday strictly after it â€”
  * never the same day, even if the input date IS already a Tuesday/Friday.
  * Tue/Wed/Thu -> the coming Friday. Fri/Sat/Sun/Mon -> the coming Tuesday.
  */
@@ -40,7 +40,7 @@ export function addCalendarDays(date: Date, days: number): Date {
   return result;
 }
 
-/** Adds N working days (skipping Sat/Sun) — used for the 7-day verification review mark. */
+/** Adds N working days (skipping Sat/Sun) â€” used for the 7-day verification review mark. */
 export function addWorkingDays(date: Date, days: number): Date {
   const result = new Date(date);
   let added = 0;
@@ -90,3 +90,28 @@ export function computeReleaseDate(submittedAt: Date, windowDays: number): Date 
 export function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/** Cohort assignment rule: applications through end of September 2026 fall under Cohort 2. */
+export function computeCohort(date: Date): string {
+  const cutoff = new Date("2026-09-30T23:59:59");
+  return date <= cutoff ? "LaunchPadX Cohort Two" : "LaunchPadX Cohort Three";
+}
+
+/** Whole calendar days between two dates (b - a), midnight-to-midnight. */
+export function daysBetween(a: Date, b: Date): number {
+  const aMid = new Date(a); aMid.setHours(0, 0, 0, 0);
+  const bMid = new Date(b); bMid.setHours(0, 0, 0, 0);
+  return Math.round((bMid.getTime() - aMid.getTime()) / 86400000);
+}
+
+/** Deterministic short date format - fixed locale/timezone so server-rendered HTML always matches client hydration. */
+export function formatShortDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+

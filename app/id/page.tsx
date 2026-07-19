@@ -1,17 +1,18 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Input";
+import { OtpGate } from "@/components/forms/OtpGate";
 
 export default function LaunchpadIDOnboarding() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | "not-eligible" | "otp">(1);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
+
   const [profile, setProfile] = useState<any>(null);
   const [preferredName, setPreferredName] = useState("");
   const [altPhone, setAltPhone] = useState("");
@@ -20,8 +21,7 @@ export default function LaunchpadIDOnboarding() {
   const [confirmPermanent, setConfirmPermanent] = useState(false);
   const [consent, setConsent] = useState(false);
 
-  async function handleEmailLookup(e: React.FormEvent) {
-    e.preventDefault();
+  async function runLookup() {
     if (!email.trim()) return;
     setLoading(true);
     setErrorMessage(null);
@@ -31,12 +31,35 @@ export default function LaunchpadIDOnboarding() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), action: "lookup" }),
       });
-      const data = await res.json();
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setErrorMessage(`Server error (status ${res.status}). Please try again.`);
+        setLoading(false);
+        return;
+      }
+
       if (!res.ok) throw new Error(data.error || "Lookup failed.");
+
       if (data.hasId) {
         router.push(`/id/success?id=${data.data.lpx_id}&email=${encodeURIComponent(email)}`);
         return;
       }
+
+      if (!data.isEligible) {
+        setStep("not-eligible");
+        setLoading(false);
+        return;
+      }
+
+      if (data.otpRequired) {
+        setStep("otp");
+        setLoading(false);
+        return;
+      }
+
       setProfile(data.data);
       setStep(2);
     } catch (err: any) {
@@ -44,6 +67,11 @@ export default function LaunchpadIDOnboarding() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleEmailLookup(e: React.FormEvent) {
+    e.preventDefault();
+    await runLookup();
   }
 
   async function handleIdActivation(e: React.FormEvent) {
@@ -67,7 +95,16 @@ export default function LaunchpadIDOnboarding() {
           consent_stored: consent
         }),
       });
-      const data = await res.json();
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setErrorMessage(`Server error (status ${res.status}). Please try again.`);
+        setLoading(false);
+        return;
+      }
+
       if (!res.ok) throw new Error(data.error || "Activation failed.");
       router.push(`/id/success?id=${data.lpx_id}&email=${encodeURIComponent(email)}`);
     } catch (err: any) {
@@ -77,13 +114,43 @@ export default function LaunchpadIDOnboarding() {
     }
   }
 
+  if (step === "not-eligible") {
+    return (
+      <div className="bg-white min-h-screen text-brand-charcoal">
+        <div className="max-w-2xl mx-auto px-4 py-24 text-center">
+          <h1 className="text-2xl font-bold mb-4">Not Yet Eligible</h1>
+          <p className="text-brand-slate mb-6">
+            Your LaunchPadX ID can only be generated after your Founder Assessment
+            (video pitch) has been reviewed and approved. If you haven't
+            submitted your video pitch yet, please do so now. If you have
+            already submitted it, please wait for the review outcome - decisions
+            are released every Tuesday and Friday.
+          </p>
+          <a href="/video-pitch" className="inline-flex items-center justify-center font-medium text-sm rounded-md px-5 py-2 bg-brand-green text-white hover:bg-brand-green-dark transition-colors">
+            Go to Video Pitch Submission
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "otp") {
+    return (
+      <div className="bg-white min-h-screen text-brand-charcoal">
+        <div className="max-w-2xl mx-auto px-4 py-24">
+          <OtpGate email={email.trim().toLowerCase()} onVerified={runLookup} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white min-h-screen text-brand-charcoal">
       <div className="bg-gradient-to-r from-gray-900 to-black text-center py-16 px-4 border-b border-brand-line">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Complete Your LaunchPadX Onboarding</h1>
           <div className="w-16 h-1 bg-brand-green mx-auto mb-6"></div>
-          <p className="text-gray-300 text-sm md:text-base mb-4">The Launchpad X ID is the foundation of your participation in this program.</p>
+          <p className="text-gray-300 text-sm md:text-base mb-4">Your LaunchPadX ID is your unique participant identifier within the LaunchPadX ecosystem. It will be used throughout your program journey to track your participation, progress, and future opportunities.</p>
         </div>
       </div>
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -127,3 +194,5 @@ export default function LaunchpadIDOnboarding() {
     </div>
   );
 }
+
+

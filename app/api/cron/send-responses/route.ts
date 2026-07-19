@@ -1,10 +1,12 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { firestoreQuery, firestoreUpdate, firestoreAdd } from "@/lib/firebase/rest-admin";
-import { sendEmail } from "@/lib/engine/ses";
+import { firestoreQuery, firestoreUpdate, firestoreAdd } from "@/lib/firebase/firestore-rest";
+import { sendEmail } from "@/lib/engine/email";
+import { timingSafeEqual } from "@/lib/engine/timingSafeEqual";
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
-  if (!secret || secret !== process.env.CRON_SECRET) {
+  const expected = process.env.CRON_SECRET;
+  if (!secret || !expected || !(await timingSafeEqual(secret, expected))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

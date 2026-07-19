@@ -1,8 +1,34 @@
-﻿{
-  "name": "launchpadx-frontend",
-  "compatibility_date": "2024-09-23",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "pages_build_output_dir": ".open-next/assets"
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "launchpadx-frontend",
+	"pages_build_output_dir": ".open-next/assets",
+	"compatibility_date": "2024-09-23",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"ai": {
+		"binding": "AI"
+	},
+	"r2_buckets": [
+		{
+			"binding": "VERIFICATION_BUCKET",
+			"bucket_name": "launchpadx-verifications"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "TOKEN_CACHE",
+			"id": "f2b1f901a1384e46aefa68f6b0ea250d"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "launchpadx_db",
+			"database_name": "launchpadx-db",
+			"database_id": "9836bf5f-27ed-47e3-aeb9-ac93eb1c8123"
+		}
+	]
 }

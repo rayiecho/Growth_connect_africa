@@ -1,20 +1,15 @@
-﻿import { NextRequest, NextResponse } from "next/server";
-import { getVerifiedAdminSession } from "@/lib/firebase/session";
-import { firestoreUpdateById } from "@/lib/firebase/rest-admin";
+﻿import { NextResponse } from "next/server";
+import { d1UpdateById } from "@/lib/db/d1-admin";
+import { withAdminAuth } from "@/lib/auth/withAdminAuth";
 
-export async function POST(req: NextRequest) {
-  const session = await getVerifiedAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const POST = withAdminAuth(async (req, session) => {
   const { id, assigned_reviewer, notes, next_action_required } = await req.json();
   if (!id) {
     return NextResponse.json({ error: "id is required." }, { status: 400 });
   }
 
   try {
-    await firestoreUpdateById("applicants", id, {
+    await d1UpdateById("applicants", id, {
       assigned_reviewer: assigned_reviewer ?? "",
       notes: notes ?? "",
       next_action_required: next_action_required ?? "",
@@ -25,4 +20,4 @@ export async function POST(req: NextRequest) {
     console.error("applicants update failed:", err);
     return NextResponse.json({ error: "Failed to save changes." }, { status: 500 });
   }
-}
+});

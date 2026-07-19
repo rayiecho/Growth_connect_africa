@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { firestoreUpdate } from "@/lib/firebase/rest-admin";
+import { firestoreUpdate } from "@/lib/firebase/firestore-rest";
+import { timingSafeEqual } from "@/lib/engine/timingSafeEqual";
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const docPath = (collection: string, id: string) =>
@@ -7,7 +8,8 @@ const docPath = (collection: string, id: string) =>
 
 export async function POST(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
+  const expected = process.env.CRON_SECRET;
+  if (!secret || !expected || !(await timingSafeEqual(secret, expected))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { submissionId } = await req.json();

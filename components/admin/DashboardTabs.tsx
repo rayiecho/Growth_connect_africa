@@ -5,7 +5,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { ApplicantTable } from "@/components/admin/ApplicantTable";
 import { VideoSubmissionsTable } from "@/components/admin/VideoSubmissionsTable";
 import { VerificationsTable } from "@/components/admin/VerificationsTable";
-import type { Applicant, VideoSubmission, Verification } from "@/lib/firebase/types";
+import type { Applicant, VideoSubmission, Verification } from "@/lib/db/types";
 
 const STEPS = ["Applicants", "Video Submissions", "Verification", "Program Participants"];
 

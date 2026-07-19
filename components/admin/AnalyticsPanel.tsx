@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import type { Applicant, VideoSubmission, Verification } from "@/lib/firebase/types";
+import type { Applicant, VideoSubmission, Verification } from "@/lib/db/types";
 
 type AnalyticsData = {
   applicants: Applicant[];
@@ -25,9 +25,13 @@ export function AnalyticsPanel({
     applicants: initialApplicants,
     videoSubmissions: initialVideo,
     verifications: initialVerifications,
-    fetchedAt: new Date().toISOString(),
+    fetchedAt: "",
   });
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setData((prev) => ({ ...prev, fetchedAt: new Date().toISOString() }));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,10 +50,9 @@ export function AnalyticsPanel({
       }
     }
 
-    const interval = setInterval(poll, POLL_INTERVAL_MS);
+    poll();
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, []);
 
@@ -66,6 +69,7 @@ export function AnalyticsPanel({
         <div>
           <span className="brand-eyebrow-line" />
           <h2 className="text-xl font-bold text-brand-charcoal">Analytics</h2>
+          <button type="button" onClick={() => window.location.reload()} className="text-xs text-brand-green font-medium hover:underline mt-1">Refresh</button>
         </div>
         <p className="text-xs text-brand-slate">
           Live - last updated {new Date(data.fetchedAt).toLocaleTimeString()}
@@ -182,3 +186,8 @@ function LiveTable({ rows, columns }: { rows: Record<string, any>[]; columns: st
     </div>
   );
 }
+
+
+
+
+

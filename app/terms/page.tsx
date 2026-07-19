@@ -11,48 +11,110 @@ export default function TermsOfServicePage() {
           <Link href="/" className="text-xs text-brand-green hover:underline font-medium">Back to Home</Link>
         </div>
         <p className="text-brand-slate text-xs">Last Updated: July 2026</p>
-        
+
         <span className="block h-px w-full bg-brand-line my-4" />
-        
+
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">1. Ecosystem Allocation Eligibility</h2>
+          <h2 className="text-lg font-bold">1. About These Terms</h2>
           <p className="text-brand-slate leading-relaxed">
-            By accessing and generating structural identifier assets via the LaunchPadX interface portal, you warrant that all submitted criteria variables are strictly accurate and belong explicitly to your active enterprise channel node.
+            These Terms of Service govern your use of the LaunchPadX application platform operated
+            by Growth Connect Africa ("GrowthConnect", "we", "us"). By submitting an application,
+            video pitch, or verification through this platform, you agree to these terms.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">2. Digital Asset Identification Usage</h2>
+          <h2 className="text-lg font-bold">2. Eligibility and Accuracy of Information</h2>
           <p className="text-brand-slate leading-relaxed">
-            The downloadable visual profile asset identity card prints serving as validation proof remain the intellectual variable property of GrowthConnect Africa network channels. Modification of underlying vector tags or systemic misrepresentation will revoke active allocation states immediately.
+            You confirm that all information you submit at every stage of the process (application,
+            video pitch, LaunchPadX ID, and verification) is accurate, truthful, and belongs to you or
+            your business. Providing false or misleading information may result in disqualification
+            from the programme at any stage.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">3. Account Limitation Metrics</h2>
+          <h2 className="text-lg font-bold">3. One Submission Per Stage</h2>
           <p className="text-brand-slate leading-relaxed">
-            GrowthConnect maintains exclusive parameters authority over application approvals, status transitions, review queue indexing adjustments, and programmatic platform revocation loops without context constraints.
+            Each stage of the qualification process (application, video pitch, and verification) can
+            only be submitted once per email address. If your video pitch is marked "Action Required"
+            by our review team, you will be permitted to resubmit using the same email; all other
+            resubmission attempts will be rejected. If you believe a mistake was made, use the Contact
+            Team form to reach us.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">4. User Platform Conduct</h2>
+          <h2 className="text-lg font-bold">4. Review Timelines and Deadlines</h2>
           <p className="text-brand-slate leading-relaxed">
-            Participants are prohibited from attempting system bypass actions, manipulating API payloads, or uploading automated malicious scripts. Any disruption to the performance of the cloud interface infrastructure will cause immediate termination of application processing.
+            Application decisions are released every Tuesday and Friday. Video pitch decisions are
+            released every Tuesday and Friday, ten days after submission. Verification decisions are
+            made within seven working days of submission. Submission deadlines communicated by
+            email are firm; late submissions are not accepted and may result in disqualification from
+            further stages.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">5. Limitation of Liability</h2>
+          <h2 className="text-lg font-bold">5. Verification Fees</h2>
           <p className="text-brand-slate leading-relaxed">
-            GrowthConnect Africa does not guarantee program selection or direct funding upon application submission. The ecosystem services platform functions on an "as-is" basis, and we assume no liability for indirect network interruptions or operational data connection latency.
+            The Founder &amp; Business Verification stage requires a processing fee, payable to our
+            independent verification partners and processed through Paystack. This fee is not paid to
+            GrowthConnect and is non-refundable once verification processing has begun.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">6. Modifications to Terms</h2>
+          <h2 className="text-lg font-bold">6. No Guarantee of Funding or Selection</h2>
           <p className="text-brand-slate leading-relaxed">
-            We reserve the right to append or change these functional rules to accommodate platform updates or changing security compliance policies. Continued navigation within the interface site after terms updates constitute official acknowledgment of the new operational guidelines.
+            Submitting an application, video pitch, or verification does not guarantee admission into
+            LaunchPadX, progression to any subsequent stage, or access to funding, credit financing,
+            or equity opportunities referenced on this platform. All decisions are made at
+            GrowthConnect's discretion based on qualification performance and evaluation.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">7. Acceptable Use</h2>
+          <p className="text-brand-slate leading-relaxed">
+            You agree not to attempt to bypass the platform's intended process, submit content on
+            behalf of someone else without authorization, upload malicious files, or interfere with the
+            normal operation of the site. Use of the SOS reporting feature for non-urgent matters may
+            delay our ability to respond to genuine emergencies.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">8. Program Materials</h2>
+          <p className="text-brand-slate leading-relaxed">
+            Your LaunchPadX ID card, program materials, and any content provided to you as part of the
+            programme remain the property of GrowthConnect Africa and are provided solely for your
+            use as a verified programme participant.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">9. Limitation of Liability</h2>
+          <p className="text-brand-slate leading-relaxed">
+            The platform is provided on an "as-is" basis. GrowthConnect is not liable for indirect
+            losses, missed deadlines due to technical issues outside our reasonable control, or
+            decisions made by independent verification or payment partners.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">10. Changes to These Terms</h2>
+          <p className="text-brand-slate leading-relaxed">
+            We may update these terms as the programme evolves. Continued use of the platform after
+            changes are posted constitutes acceptance of the updated terms.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">11. Contact Us</h2>
+          <p className="text-brand-slate leading-relaxed">
+            Questions about these terms can be sent through the Contact Team form, or by email to
+            hello@growthconnect.africa.
           </p>
         </section>
       </div>

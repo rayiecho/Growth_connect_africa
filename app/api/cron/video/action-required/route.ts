@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getVerifiedAdminSession } from "@/lib/firebase/session";
-import { firestoreQuery, firestoreGetAll } from "@/lib/firebase/rest-admin";
-import { sendEmail, mergeTags } from "@/lib/engine/ses";
+import { firestoreQuery, firestoreGetAll } from "@/lib/firebase/firestore-rest";
+import { sendEmail, mergeTags } from "@/lib/engine/email";
 
 export async function POST(req: NextRequest) {
   const session = await getVerifiedAdminSession();

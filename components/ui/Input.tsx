@@ -1,9 +1,9 @@
-import { InputHTMLAttributes, SelectHTMLAttributes } from "react";
+﻿import { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
 
 interface FieldProps {
   label: string;
   required?: boolean;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   children: React.ReactNode;
 }

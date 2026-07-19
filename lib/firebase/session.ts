@@ -1,5 +1,5 @@
 ﻿import { cookies } from "next/headers";
-import { verifySessionCookieRest } from "@/lib/firebase/rest-admin";
+import { verifySessionCookieRest } from "@/lib/firebase/auth-rest";
 
 export async function getVerifiedAdminSession() {
   const cookieStore = cookies();

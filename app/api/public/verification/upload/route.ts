@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { checkRateLimit } from "@/lib/engine/rateLimit";
 
 // POST /api/public/verification/upload
 // Accepts multipart/form-data: folder, type, file
@@ -14,6 +15,14 @@ const MAX_BYTES = 15 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
+    const cfContext = await getCloudflareContext();
+    const kv = (cfContext?.env as any)?.TOKEN_CACHE;
+    const ip = req.headers.get("cf-connecting-ip") || "unknown";
+    const limit = await checkRateLimit(kv, `verification-upload:${ip}`, 10, 3600);
+    if (!limit.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
     const form = await req.formData();
     const file = form.get("file");
     const folder = form.get("folder");
@@ -35,15 +44,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File too large. Max 15 MB." }, { status: 400 });
     }
 
-    // Strip path-traversal characters before they touch R2.
     const safeFolder = folder.replace(/[^a-zA-Z0-9._-]/g, "_");
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const key = `${safeFolder}/${type}-${safeName}`;
 
-    // Cast env to any to clear TypeScript interface validation flags
-    const cfContext = getCloudflareContext();
     const env = (cfContext?.env || {}) as any;
-
     if (!env.VERIFICATION_BUCKET) {
       return NextResponse.json({ error: "R2 bucket binding missing from context" }, { status: 500 });
     }

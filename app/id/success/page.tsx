@@ -1,23 +1,73 @@
 ﻿"use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, Suspense, useRef } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Input";
+import { PhotoCameraCapture } from "@/components/ui/PhotoCameraCapture";
+import { OtpGate } from "@/components/forms/OtpGate";
 
 function SuccessCardContent() {
   const searchParams = useSearchParams();
   const idValue = searchParams.get("id") || "LPX-PENDING";
   const emailValue = searchParams.get("email") || "";
-  
+
+  const [loadStatus, setLoadStatus] = useState<"loading" | "otp-required" | "loaded">(
+    emailValue ? "loading" : "loaded"
+  );
+
   const [copied, setCopied] = useState(false);
   const [isGeneratingCard, setIsGeneratingCard] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const [cohort, setCohort] = useState("LaunchPadX Cohort Two");
   const [preferredName, setPreferredName] = useState("");
+  const [altPhone, setAltPhone] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  function runLookup() {
+    fetch("/api/public/lpx-id", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailValue, action: "lookup" }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.otpRequired) {
+          setLoadStatus("otp-required");
+          return;
+        }
+        if (data?.data) {
+          setCohort(data.data.cohort || "LaunchPadX Cohort Two");
+          setPreferredName(data.data.preferred_name || "");
+          setAltPhone(data.data.alternate_phone || "");
+          setLinkedin(data.data.linkedin || "");
+          if (data.data.photo_path) {
+            setPhotoPath(data.data.photo_path);
+            const segments = data.data.photo_path.split("/").map(encodeURIComponent).join("/");
+            setPhotoPreviewUrl(`/api/public/lpx-id/photo/${segments}?email=${encodeURIComponent(emailValue)}`);
+          }
+        }
+        setLoadStatus("loaded");
+      })
+      .catch(() => {
+        setLoadStatus("loaded");
+      });
+  }
+
+  useEffect(() => {
+    if (!emailValue) return;
+    runLookup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailValue]);
 
   function copyToClipboard() {
     navigator.clipboard.writeText(idValue);
@@ -25,33 +75,101 @@ function SuccessCardContent() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function uploadPhoto(file: File | Blob) {
+    setIsUploadingPhoto(true);
+    setPhotoError(null);
+
+    const localPreview = URL.createObjectURL(file);
+    setPhotoPreviewUrl(localPreview);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file, "photo.jpg");
+      formData.append("email", emailValue);
+
+      const res = await fetch("/api/public/lpx-id/upload-photo", {
+        method: "POST",
+        body: formData,
+      });
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setPhotoError(`Server error (status ${res.status}). Please try again.`);
+        setIsUploadingPhoto(false);
+        return;
+      }
+
+      if (!res.ok) {
+        setPhotoError(data.error || "Photo upload failed.");
+        setIsUploadingPhoto(false);
+        return;
+      }
+
+      setPhotoPath(data.key);
+
+      const saveRes = await fetch("/api/public/lpx-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailValue,
+          action: "update_profile",
+          photo_path: data.key,
+        }),
+      });
+      if (!saveRes.ok) {
+        setPhotoError("Photo uploaded but failed to save to your profile. Please try saving again.");
+      }
+    } catch {
+      setPhotoError("Network error uploading photo. Please try again.");
+    }
+    setIsUploadingPhoto(false);
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => { setPhotoPreviewUrl(reader.result as string); };
-    reader.readAsDataURL(file);
+    await uploadPhoto(file);
   }
 
   async function handleProfileUpdate(e: React.FormEvent) {
     e.preventDefault();
     setIsSavingProfile(true);
     setSaveSuccessMessage(null);
+    setSaveError(null);
     try {
       const res = await fetch("/api/public/lpx-id", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: emailValue,
-          action: "generate",
+          action: "update_profile",
           preferred_name: preferredName,
-          consent_stored: true
+          alternate_phone: altPhone,
+          linkedin: linkedin,
+          photo_path: photoPath,
         }),
       });
-      if (!res.ok) throw new Error("Update failed.");
-      setSaveSuccessMessage("Profile parameters updated successfully!");
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        setSaveError(`Server error (status ${res.status}). Please try again.`);
+        setIsSavingProfile(false);
+        return;
+      }
+
+      if (!res.ok) {
+        setSaveError(data.error || "Update failed.");
+        setIsSavingProfile(false);
+        return;
+      }
+
+      setSaveSuccessMessage("Profile updated successfully!");
     } catch (err) {
-      console.error(err);
+      setSaveError("Network error. Please try again.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -71,117 +189,132 @@ function SuccessCardContent() {
     canvas.width = 1000;
     canvas.height = 600;
 
-    // 1. Draw Split Background Layout
-    ctx.fillStyle = "#FFFFFF"; 
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, 1000, 600);
 
-    ctx.fillStyle = "#111827"; 
+    ctx.fillStyle = "#111827";
     ctx.fillRect(0, 0, 360, 600);
 
-    ctx.fillStyle = "#16A34A"; 
+    ctx.fillStyle = "#16A34A";
     ctx.fillRect(356, 0, 4, 600);
 
-    // 2. Draw Left Side Avatar Ring Frame
     const centerX = 180;
     const centerY = 290;
     const radius = 105;
 
-    ctx.save();
-    ctx.strokeStyle = "#16A34A";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius + 4, 0, Math.PI * 2);
-    ctx.stroke();
+    function drawRestOfCard(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+      ctx.save();
+      ctx.strokeStyle = "#16A34A";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
 
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 24px Arial, sans-serif";
+      ctx.fillText(preferredName ? preferredName.toUpperCase() : "PARTICIPANT", centerX, 445);
+
+      ctx.fillStyle = "#BBF7D0";
+      ctx.font = "600 15px Arial, sans-serif";
+      ctx.fillText("PROGRAM PARTICIPANT", centerX, 480);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#16A34A";
+      ctx.font = "bold 20px Arial, sans-serif";
+      ctx.fillText(`${cohort.toUpperCase()} PROGRAMME`, 410, 65);
+
+      ctx.fillStyle = "#9CA3AF";
+      ctx.font = "bold 15px Arial, sans-serif";
+      ctx.fillText("LAUNCHPADX PROGRAM ID", 410, 160);
+
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 44px Arial, sans-serif";
+      ctx.fillText(idValue, 410, 215);
+
+      ctx.fillStyle = "#6B7280";
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillText("Linked Channel Account:", 410, 310);
+      ctx.fillStyle = "#111827";
+      ctx.font = "normal 18px Arial, sans-serif";
+      ctx.fillText(emailValue || "Verified Account", 410, 340);
+
+      ctx.fillStyle = "#6B7280";
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillText("Ecosystem Security Group:", 410, 400);
+      ctx.fillStyle = "#111827";
+      ctx.font = "normal 18px Arial, sans-serif";
+      ctx.fillText(cohort, 410, 430);
+
+      ctx.fillStyle = "#6B7280";
+      ctx.font = "bold 16px Arial, sans-serif";
+      ctx.fillText("Identity Allocation Status:", 410, 490);
+      ctx.fillStyle = "#16A34A";
+      ctx.font = "bold 18px Arial, sans-serif";
+      ctx.fillText("ACTIVE INITIALIZED IDENTITY", 410, 520);
+
+      ctx.fillStyle = "#9CA3AF";
+      ctx.font = "12px Arial, sans-serif";
+      ctx.fillText("Proof of identity issued via secure GrowthConnect platform records.", 410, 565);
+
+      try {
+        const dataUrl = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = "LaunchPadX-ID-" + idValue + ".png";
+        downloadLink.href = dataUrl;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      } catch (err) {
+        console.error("Canvas export failed:", err);
+      } finally {
+        setIsGeneratingCard(false);
+      }
+    }
+
+    ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.clip();
 
     if (photoPreviewUrl) {
       const userImg = new Image();
+      userImg.crossOrigin = "anonymous";
+      userImg.onload = () => {
+        ctx.drawImage(userImg, centerX - radius, centerY - radius, radius * 2, radius * 2);
+        ctx.restore();
+        drawRestOfCard(ctx, canvas);
+      };
+      userImg.onerror = () => {
+        ctx.fillStyle = "#1F2937";
+        ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+        ctx.restore();
+        drawRestOfCard(ctx, canvas);
+      };
       userImg.src = photoPreviewUrl;
-      ctx.drawImage(userImg, centerX - radius, centerY - radius, radius * 2, radius * 2);
     } else {
       ctx.fillStyle = "#1F2937";
       ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
-      ctx.fillStyle = "#4B5563";
-      ctx.beginPath();
-      ctx.arc(centerX, centerY - 20, 34, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(centerX, centerY + 80, 70, Math.PI, 0, false);
-      ctx.fill();
+      ctx.restore();
+      drawRestOfCard(ctx, canvas);
     }
-    ctx.restore();
+  }
 
-    // User Text Labels on Left Side Panel
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 24px Arial, sans-serif";
-    ctx.fillText(preferredName ? preferredName.toUpperCase() : "PARTICIPANT NODE", centerX, 445);
+  if (loadStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-brand-slate">
+        Loading your details...
+      </div>
+    );
+  }
 
-    ctx.fillStyle = "#BBF7D0"; 
-    ctx.font = "600 15px Arial, sans-serif";
-    ctx.fillText("OFFICIAL REPRESENTATIVE", centerX, 480);
-
-    // 3. Draw Right Side Metadata Data Sheet Grid Elements
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#16A34A";
-    ctx.font = "bold 20px Arial, sans-serif";
-    ctx.fillText("LAUNCHPADX COHORT PROGRAMME", 410, 65);
-
-    ctx.fillStyle = "#9CA3AF";
-    ctx.font = "bold 15px Arial, sans-serif";
-    ctx.fillText("OFFICIAL ECOSYSTEM IDENTIFIER", 410, 160);
-
-    ctx.fillStyle = "#111827";
-    ctx.font = "bold 44px Arial, sans-serif";
-    ctx.fillText(idValue, 410, 215);
-
-    ctx.fillStyle = "#6B7280";
-    ctx.font = "bold 16px Arial, sans-serif";
-    ctx.fillText("Linked Channel Account:", 410, 310);
-    ctx.fillStyle = "#111827";
-    ctx.font = "normal 18px Arial, sans-serif";
-    ctx.fillText(emailValue || "Verified Matrix Account", 410, 340);
-
-    ctx.fillStyle = "#6B7280";
-    ctx.font = "bold 16px Arial, sans-serif";
-    ctx.fillText("Ecosystem Security Group:", 410, 400);
-    ctx.fillStyle = "#111827";
-    ctx.font = "normal 18px Arial, sans-serif";
-    ctx.fillText("LaunchPadX Cohort 2", 410, 430);
-
-    ctx.fillStyle = "#6B7280";
-    ctx.font = "bold 16px Arial, sans-serif";
-    ctx.fillText("Identity Allocation Status:", 410, 490);
-    ctx.fillStyle = "#16A34A";
-    ctx.font = "bold 18px Arial, sans-serif";
-    ctx.fillText("ACTIVE INITIALIZED IDENTITY", 410, 520);
-
-    ctx.fillStyle = "#9CA3AF";
-    ctx.font = "12px Arial, sans-serif";
-    ctx.fillText("Proof of identity issued via secure GrowthConnect platform metrics tracking layout components.", 410, 565);
-
-    // 4. Load & Render Logo SVG Vector On Left Side Panel Top Corner
-    const logoImg = new Image();
-    logoImg.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://w3.org" viewBox="0 0 1000 350"><g fill="#FFFFFF"><circle cx="70" cy="275" r="40"/><circle cx="190" cy="275" r="40"/><circle cx="190" cy="155" r="40"/><circle cx="310" cy="155" r="40"/><circle cx="310" cy="35" r="40"/></g><circle cx="310" cy="275" r="40" fill="#16A34A"/><g stroke="#FFFFFF" stroke-width="8"><line x1="110" y1="275" x2="150" y2="275"/><line x1="230" y1="275" x2="270" y2="275"/><line x1="190" y1="195" x2="190" y2="235"/><line x1="230" y1="155" x2="270" y2="155"/><line x1="310" y1="75" x2="310" y2="115"/><line x1="310" y1="195" x2="310" y2="235"/></g><text x="430" y="165" font-family="Arial" font-weight="bold" font-size="140" fill="#FFFFFF">Growth</text><text x="430" y="295" font-family="Arial" font-size="140" fill="#FFFFFF">Connect</text></svg>`);
-
-    try { ctx.drawImage(logoImg, 45, 35, 270, 78); } catch(e){}
-
-    try {
-      const dataUrl = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = "LaunchPadX-ID-" + idValue + ".png";
-      downloadLink.href = dataUrl;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-    } catch (err) {
-      console.error("Canvas export failed:", err);
-    } finally {
-      setIsGeneratingCard(false);
-    }
+  if (loadStatus === "otp-required") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <OtpGate email={emailValue} onVerified={runLookup} />
+      </div>
+    );
   }
 
   return (
@@ -204,39 +337,74 @@ function SuccessCardContent() {
               )}
             </div>
           </div>
-          
+
           <div className="md:col-span-2 space-y-3 text-sm">
             <p className="text-xs text-gray-400 font-bold uppercase">Official Identity String</p>
             <div className="flex items-center gap-3">
               <span className="text-2xl font-mono font-bold text-brand-green">{idValue}</span>
               <Button variant="secondary" onClick={copyToClipboard} className="text-xs px-2 py-0.5">{copied ? "Copied!" : "Copy"}</Button>
             </div>
-            <p><strong className="text-brand-slate">Preferred Name:</strong> {preferredName || "Not Specified Yet"}</p>
+            <p><strong className="text-brand-slate">Cohort:</strong> {cohort}</p>
+            <p><strong className="text-brand-slate">Preferred Name:</strong> {preferredName || "Not set yet"}</p>
             <p><strong className="text-brand-slate">Account Email:</strong> {emailValue}</p>
           </div>
         </div>
 
         <div className="bg-white border border-brand-line rounded-2xl p-6">
           <h3 className="text-base font-bold text-brand-charcoal mb-4">Complete and Personalize Your ID Card Details</h3>
-          {saveSuccessMessage && <p className="text-sm text-green-600 mb-4 font-medium">âœ“ {saveSuccessMessage}</p>}
+          {saveSuccessMessage && <p className="text-sm text-green-600 mb-4 font-medium">Saved: {saveSuccessMessage}</p>}
+          {saveError && <p className="text-sm text-red-500 mb-4">{saveError}</p>}
           <form onSubmit={handleProfileUpdate} className="space-y-4 text-sm">
             <div>
               <label className="block text-xs font-semibold text-brand-slate mb-1">Preferred First Name on Card</label>
               <TextInput placeholder="e.g. Regan" value={preferredName} onChange={(e) => setPreferredName(e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-brand-slate mb-1">Upload Profile Identification Photo</label>
-              <input type="file" accept="image/*" onChange={handlePhotoChange} className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-green/10 file:text-brand-green-dark hover:file:bg-brand-green/20" />
+              <label className="block text-xs font-semibold text-brand-slate mb-1">Alternate Phone</label>
+              <TextInput placeholder="e.g. +234..." value={altPhone} onChange={(e) => setAltPhone(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-brand-slate mb-1">LinkedIn URL</label>
+              <TextInput placeholder="https://linkedin.com/in/..." value={linkedin} onChange={(e) => setLinkedin(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-brand-slate mb-1">Upload Profile Photo</label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handlePhotoChange}
+                disabled={isUploadingPhoto}
+                className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-green/10 file:text-brand-green-dark hover:file:bg-brand-green/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCamera(true)}
+                disabled={isUploadingPhoto}
+                className="mt-2 text-xs font-semibold text-brand-green-dark hover:underline"
+              >
+                Or take a photo now
+              </button>
+              {isUploadingPhoto && <p className="text-xs text-brand-slate mt-1">Uploading photo...</p>}
+              {photoError && <p className="text-xs text-red-500 mt-1">{photoError}</p>}
+              {showCamera && (
+                <PhotoCameraCapture
+                  onCapture={(blob) => {
+                    setShowCamera(false);
+                    uploadPhoto(blob);
+                  }}
+                  onClose={() => setShowCamera(false)}
+                />
+              )}
             </div>
             <Button type="submit" variant="primary" disabled={isSavingProfile}>
-              {isSavingProfile ? "Saving Parameters..." : "Save Identity Parameters"}
+              {isSavingProfile ? "Saving..." : "Save Profile Details"}
             </Button>
           </form>
         </div>
 
         <div className="flex flex-wrap gap-4 pt-2">
           <Button variant="primary" onClick={downloadIdCard} disabled={isGeneratingCard}>
-            {isGeneratingCard ? "Building Visual Asset..." : "Download Official ID Card Image"}
+            {isGeneratingCard ? "Building Card..." : "Download ID Card Image"}
           </Button>
           <a href="/verification" className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-brand-charcoal rounded-lg text-sm font-medium transition-colors text-center">
             Proceed to Founder Verification
@@ -249,10 +417,15 @@ function SuccessCardContent() {
 
 export default function LaunchpadIDSuccess() {
   return (
-    <Suspense fallback={<div className="p-12 text-center text-sm text-brand-slate">Loading Profile Node...</div>}>
+    <Suspense fallback={<div className="p-12 text-center text-sm text-brand-slate">Loading...</div>}>
       <SuccessCardContent />
     </Suspense>
   );
 }
+
+
+
+
+
 
 

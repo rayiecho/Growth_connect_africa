@@ -1,12 +1,17 @@
-﻿import Link from "next/link";
+﻿"use client";
+
+import { useState } from "react";
+import Link from "next/link";
 
 export function SiteHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-brand-line">
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center">
           <div className="h-10 w-auto flex items-center">
-            <svg xmlns="http://w3.org" viewBox="0 0 1000 350" className="h-9 w-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350" className="h-9 w-auto">
               <g fill="#111827">
                 <circle cx="70" cy="275" r="40"/>
                 <circle cx="190" cy="275" r="40"/>
@@ -31,11 +36,38 @@ export function SiteHeader() {
 
         <nav className="hidden md:flex items-center gap-8 text-xs font-bold tracking-wide text-brand-charcoal">
           <a href="https://growthconnect.africa" className="hover:text-brand-green transition-colors">HOME</a>
-          <a href="https://growthconnect.africaabout-us/" className="hover:text-brand-green transition-colors">ABOUT</a>
-          <a href="https://growthconnect.africablog/" className="hover:text-brand-green transition-colors">BLOG</a>
+          <a href="https://growthconnect.africa/about-us/" className="hover:text-brand-green transition-colors">ABOUT</a>
+          <a href="https://growthconnect.africa/blog/" className="hover:text-brand-green transition-colors">BLOG</a>
         </nav>
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden flex items-center justify-center w-9 h-9 text-brand-charcoal"
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          )}
+        </button>
       </div>
+
+      {menuOpen && (
+        <nav className="md:hidden border-t border-brand-line bg-white px-6 py-4 flex flex-col gap-4 text-sm font-bold tracking-wide text-brand-charcoal">
+          <a href="https://growthconnect.africa" className="hover:text-brand-green transition-colors" onClick={() => setMenuOpen(false)}>HOME</a>
+          <a href="https://growthconnect.africa/about-us/" className="hover:text-brand-green transition-colors" onClick={() => setMenuOpen(false)}>ABOUT</a>
+          <a href="https://growthconnect.africa/blog/" className="hover:text-brand-green transition-colors" onClick={() => setMenuOpen(false)}>BLOG</a>
+        </nav>
+      )}
     </header>
   );
 }
-

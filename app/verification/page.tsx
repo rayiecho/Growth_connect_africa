@@ -1,4 +1,4 @@
-import { VerificationForm } from "@/components/forms/VerificationForm";
+﻿import { VerificationForm } from "@/components/forms/VerificationForm";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 
@@ -6,7 +6,6 @@ export default function VerificationPage() {
   return (
     <>
       <SiteHeader />
-
       <section className="relative bg-brand-charcoal overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-40"
@@ -31,18 +30,9 @@ export default function VerificationPage() {
           </p>
         </div>
       </section>
-
       <main className="max-w-3xl mx-auto px-6 py-16">
-        <h2 className="text-2xl font-bold text-brand-charcoal mb-1">
-          Verification submission form
-        </h2>
-        <p className="text-sm text-brand-slate mb-8">
-          Fields marked with an <span className="text-red-500">*</span> are
-          required
-        </p>
         <VerificationForm />
       </main>
-
       <SiteFooter />
     </>
   );

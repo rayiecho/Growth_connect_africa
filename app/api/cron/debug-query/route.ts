@@ -1,9 +1,15 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { firestoreQueryOrdered } from "@/lib/firebase/rest-admin";
+import { firestoreQueryOrdered } from "@/lib/firebase/firestore-rest";
+import { timingSafeEqual } from "@/lib/engine/timingSafeEqual";
 
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
+  const expected = process.env.CRON_SECRET;
+  if (!secret || !expected || !(await timingSafeEqual(secret, expected))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
